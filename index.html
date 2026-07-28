@@ -90,7 +90,7 @@
   }
   .det-codigo{
     text-transform:uppercase;
-    letter-spacing:0.06em;
+    letter-spacing:0.04em;
     font-weight:600;
   }
   .fecha-wrap{
@@ -406,10 +406,10 @@
       <table>
         <thead>
           <tr>
-            <th style="width:30%">Ubicación</th>
-            <th style="width:32%">Código</th>
-            <th style="width:23%">Cantidad</th>
-            <th style="width:15%"></th>
+            <th style="width:20%">Ubicación</th>
+            <th style="width:50%">Código</th>
+            <th style="width:18%">Cantidad</th>
+            <th style="width:12%"></th>
           </tr>
         </thead>
         <tbody id="detalleBody">
@@ -457,22 +457,17 @@
     <button type="button" class="send-confirm-btn" onclick="confirmarYLimpiar()">Ya lo guardé / envié — limpiar formulario</button>
   </div>
 </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script>
-// Correo destinatario fijo (ejemplo — reemplazar por el real)
-// Destinatarios fijos — agrega o quita correos aquí, separados por comas.
-// Ejemplo con varios: ["abidai.lopez@grpopdc.com", "williams.oxlaj@grupopdc.com", "otra_persona@ejemplo.com"]
 const DESTINATARIOS = [
   "abidai.lopez@grupopdc.com","williams.oxlaj@grupopdc.com"
 ];
 document.getElementById('recipientLabel').textContent = DESTINATARIOS.join(', ');
 
-let campoActivoCodigo = null; // último campo Código enfocado, destino del escaneo por cámara
-let ultimaUbicacion = ''; // se repite en líneas nuevas hasta que el usuario la cambie
+let campoActivoCodigo = null;
+let ultimaUbicacion = '';
 
-// ---------- Borrador automático (evita perder datos si se cierra/recarga sin querer) ----------
 const CLAVE_BORRADOR = 'inventario_wtw_borrador';
 
 function guardarBorrador(){
@@ -494,7 +489,7 @@ function guardarBorrador(){
       filas
     };
     localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(datos));
-  }catch(err){ /* si el navegador bloquea almacenamiento, seguimos sin autoguardado */ }
+  }catch(err){}
 }
 
 function borrarBorrador(){
@@ -554,7 +549,6 @@ function restaurarBorrador(){
   document.querySelector('header.top').insertAdjacentElement('afterend', aviso);
 }
 
-// ---------- Fecha dd/mm/aaaa ----------
 function formatearFecha(valor){
   let d = valor.replace(/\D/g,'').slice(0,8);
   if(d.length >= 5) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
@@ -576,6 +570,7 @@ fechaInput.addEventListener('input', (e) => {
   e.target.value = formatearFecha(e.target.value);
   guardarBorrador();
 });
+
 (function setFechaHoy(){
   const hoy = new Date();
   const dd = String(hoy.getDate()).padStart(2,'0');
@@ -613,7 +608,6 @@ function wireRow(tr){
   codInput.addEventListener('focus', () => { campoActivoCodigo = codInput; });
   ubiInput.addEventListener('focus', () => { campoActivoCodigo = ubiInput; });
 
-  // El código siempre se guarda en mayúsculas, sin espacios sueltos
   codInput.addEventListener('input', () => {
     const cursor = codInput.selectionStart;
     codInput.value = codInput.value.toUpperCase();
@@ -623,8 +617,6 @@ function wireRow(tr){
 
   cantInput.addEventListener('input', guardarBorrador);
 
-  // Si el usuario cambia la ubicación, las líneas nuevas siguientes heredan ese valor.
-  // También se guarda en mayúsculas, igual que código, para que sea escaneable.
   ubiInput.addEventListener('input', () => {
     const cursor = ubiInput.selectionStart;
     ubiInput.value = ubiInput.value.toUpperCase();
@@ -633,7 +625,6 @@ function wireRow(tr){
     guardarBorrador();
   });
 
-  // Si el usuario edita ubicación manualmente, Enter pasa a Código de la misma fila
   ubiInput.addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){
       e.preventDefault();
@@ -642,8 +633,6 @@ function wireRow(tr){
     }
   });
 
-  // El lector de código de barras escribe y envía Enter igual que el teclado,
-  // así que este mismo campo sirve para escanear con lector físico o digitar.
   codInput.addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){
       e.preventDefault();
@@ -676,7 +665,7 @@ function addRow(focusNew){
     <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
   `;
   tbody.appendChild(tr);
-  tr.querySelector('.det-ubicacion').value = ultimaUbicacion; // hereda la última ubicación usada
+  tr.querySelector('.det-ubicacion').value = ultimaUbicacion;
   wireRow(tr);
   if(focusNew){
     tr.querySelector('.det-codigo').focus();
@@ -691,15 +680,13 @@ function removeRow(btn){
   }
 }
 
-// Activar el flujo de escaneo/digitación en la primera línea existente
 const primeraFila = document.querySelector('#detalleBody tr');
 wireRow(primeraFila);
 campoActivoCodigo = primeraFila.querySelector('.det-codigo');
 
-// Al cargar la página, recuperar cualquier borrador guardado antes de un cierre/recarga accidental
 restaurarBorrador();
 
-// ---------- Escaneo por cámara (ZXing: funciona en Chrome, Safari, Android e iOS) ----------
+// ---------- Escaneo por cámara optimizado ----------
 let zxingReader = null;
 
 async function abrirEscaner(){
@@ -723,9 +710,30 @@ async function abrirEscaner(){
   status.textContent = 'Apunta la cámara al código de barras…';
 
   try{
-    zxingReader = new ZXing.BrowserMultiFormatReader();
+    // Configuración de formatos admitidos para evitar falsas lecturas erróneas
+    const hints = new Map();
+    const formats = [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.CODE_39
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+    
+    // Restricciones de video con mayor resolución para nitidez en las barras
+    const constraints = {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    };
+
     await zxingReader.decodeFromConstraints(
-      { video: { facingMode: { ideal: 'environment' } } },
+      constraints,
       video,
       (result, err) => {
         if(result){
@@ -763,7 +771,6 @@ function cerrarEscaner(){
   }
 }
 
-
 function enviarCorreo(){
   const fecha = document.getElementById('fecha').value;
   const codAsociado = document.getElementById('codAsociado').value.trim();
@@ -794,8 +801,6 @@ function enviarCorreo(){
     const ubi = ubicaciones[i].value.trim();
     if(cod && cant){
       detalleValido = true;
-      // Sin espacios junto al "|": al abrir en Excel y separar por ese delimitador,
-      // cada columna queda exacta, sin espacio sobrante al inicio o al final.
       detalleLineas.push([fecha, codAsociado, nombreAsociado, zona, numDoc, ubi, cod, cant].join('|'));
     }
   }
@@ -864,8 +869,6 @@ function descargarRespaldo(){
 function confirmarYLimpiar(){
   document.getElementById('sendOverlay').classList.remove('active');
 
-  // Fecha, código asociado y nombre asociado se conservan (mismo turno/asociado).
-  // Solo se limpian: número de documento y las líneas de detalle (código, cantidad y ubicación).
   document.getElementById('numDoc').value = '';
  
   const tbody = document.getElementById('detalleBody');
@@ -878,17 +881,15 @@ function confirmarYLimpiar(){
     </tr>
   `;
   const nuevaFila = tbody.querySelector('tr');
-  ultimaUbicacion = ''; // también se olvida la última ubicación usada
+  ultimaUbicacion = '';
   wireRow(nuevaFila);
   campoActivoCodigo = nuevaFila.querySelector('.det-codigo');
   document.getElementById('numDoc').focus();
 
-  // Ya se guardó/envió: se borra el borrador para que no se recupere información ya procesada
   borrarBorrador();
   guardarBorrador();
 }
 
-// ---------- Aviso al recargar o cerrar con datos sin guardar ----------
 function hayDatosSinGuardar(){
   const numDoc = document.getElementById('numDoc').value.trim();
   const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
