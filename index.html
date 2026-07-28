@@ -9,7 +9,7 @@
     --ink:#2b2f36;
     --paper:#1c2128;
     --panel:#fbf9f5;
-    --line:#d3cbbb;
+    --line:#ded7c8;
     --accent:#b6904f;   /* latón, tono elegante */
     --accent-dark:#8f6f38;
     --grey-vacio:#9aa19a;
@@ -23,7 +23,7 @@
     color:var(--ink);
     padding:24px 16px 60px;
   }
-  .wrap{max-width:820px;margin:0 auto;}
+  .wrap{max-width:860px;margin:0 auto;}
   header.top{
     border-bottom:2px solid var(--accent);
     padding-bottom:14px;
@@ -103,11 +103,11 @@
   }
   input{
     width:100%;
-    padding:8px 9px;
+    padding:7px 8px;
     border:1px solid var(--line);
     border-radius:2px;
     font-family:inherit;
-    font-size:0.92rem;
+    font-size:0.78rem; /* Texto más pequeño dentro de los textboxes */
     background:#fbfbfa;
     color:var(--ink);
   }
@@ -120,7 +120,7 @@
   .det-marbete,
   .det-codigo{
     text-transform:uppercase;
-    letter-spacing:0.04em;
+    letter-spacing:0.02em;
   }
   .det-codigo{
     font-weight:600;
@@ -162,19 +162,19 @@
     text-transform:uppercase;
     letter-spacing:0.06em;
     color:#6b7268;
-    padding:0 8px 8px;
+    padding:0 6px 8px;
   }
-  td{padding:4px 8px 4px 0;}
+  td{padding:4px 6px 4px 0;}
   td:last-child{padding-right:0;}
   .row-del{
     background:none;
     border:1px solid var(--line);
     color:#a33;
-    width:32px;
-    height:32px;
+    width:30px;
+    height:30px;
     border-radius:2px;
     cursor:pointer;
-    font-size:0.9rem;
+    font-size:0.85rem;
     line-height:1;
   }
   .row-del:hover{background:#f6e6e2;}
@@ -442,7 +442,7 @@
       <h2>Detalle</h2>
       <table>
         <thead id="detalleHead">
-          <!-- Anchos optimizados para los textboxes -->
+          <!-- Anchos optimizados para 13+ dígitos -->
         </thead>
         <tbody id="detalleBody">
           <!-- Filas dinámicas -->
@@ -501,7 +501,7 @@ let campoActivoCodigo = null;
 let ultimaUbicacion = '';
 let ultimoMarbete = '';
 
-const CLAVE_BORRADOR = 'inventario_wtw_borrador_multimodo_v2';
+const CLAVE_BORRADOR = 'inventario_wtw_borrador_multimodo_v3';
 
 function actualizarInterfazModo(){
   const wrapNumDoc = document.getElementById('campoNumDocWrap');
@@ -512,31 +512,31 @@ function actualizarInterfazModo(){
   if(modoActual === '1'){
     wrapNumDoc.style.display = 'block';
     inputNumDoc.setAttribute('required', 'required');
-    // Anchos cómodos para Ubicación (30%), Código (46%), Cantidad (14%), Botón (10%)
+    // Código con mayor ancho (55%) para visualizar holgadamente 13+ dígitos con letra compacta
     thead.innerHTML = `
       <tr>
-        <th style="width:30%">Ubicación</th>
-        <th style="width:46%">Código</th>
-        <th style="width:14%">Cantidad</th>
-        <th style="width:10%"></th>
+        <th style="width:25%">Ubicación</th>
+        <th style="width:55%">Código (13+ dígitos)</th>
+        <th style="width:12%">Cantidad</th>
+        <th style="width:8%"></th>
       </tr>
     `;
-    nota.textContent = 'Código y Ubicación admiten lector USB/Bluetooth, cámara o digitación manual (ampliados para ver 8+ caracteres). Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea. Ubicación se repite igual que la línea anterior.';
+    nota.textContent = 'Código ampliado para ver 13+ dígitos sin apretarse. Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea. Ubicación se repite igual que la línea anterior.';
   } else {
     wrapNumDoc.style.display = 'none';
     inputNumDoc.removeAttribute('required');
     inputNumDoc.value = '';
-    // Anchos equilibrados para que Ubicación y Marbete tengan suficiente espacio cada uno (26% c/u), Código (30%), Cantidad (10%), Botón (8%)
+    // Código con ancho optimizado (44%) para 13+ dígitos en modo detalle
     thead.innerHTML = `
       <tr>
-        <th style="width:26%">Ubicación</th>
-        <th style="width:26%">Marbete</th>
-        <th style="width:30%">Código</th>
-        <th style="width:10%">Cant.</th>
-        <th style="width:8%"></th>
+        <th style="width:22%">Ubicación</th>
+        <th style="width:22%">Marbete</th>
+        <th style="width:44%">Código (13+ dígitos)</th>
+        <th style="width:8%">Cant.</th>
+        <th style="width:4%"></th>
       </tr>
     `;
-    nota.textContent = 'Ubicación y Marbete están dimensionados para visualizar cómodamente 8+ caracteres y se repiten automáticamente en cada línea nueva. Enter avanza secuencialmente entre campos.';
+    nota.textContent = 'Campos dimensionados para visualizar cómodamente 13+ caracteres en código y repetirse automáticamente en cada línea nueva. Enter avanza secuencialmente.';
   }
 }
 
@@ -690,7 +690,7 @@ function crearFilaHTML(){
   if(modoActual === '1'){
     tr.innerHTML = `
       <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
-      <td><input type="text" class="det-codigo" placeholder="Escanea o digita"></td>
+      <td><input type="text" class="det-codigo" placeholder="Escanea o digita (13 díg.)"></td>
       <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
       <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
     `;
@@ -698,7 +698,7 @@ function crearFilaHTML(){
     tr.innerHTML = `
       <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
       <td><input type="text" class="det-marbete" placeholder="Marbete"></td>
-      <td><input type="text" class="det-codigo" placeholder="Escanea o digita"></td>
+      <td><input type="text" class="det-codigo" placeholder="Escanea o digita (13 díg.)"></td>
       <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
       <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
     `;
