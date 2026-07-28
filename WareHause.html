@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario WTW</title>
+<style>
+  :root{
+    --ink:#2b2f36;
+    --paper:#1c2128;
+    --panel:#fbf9f5;
+    --line:#ded7c8;
+    --accent:#b6904f;   /* latón, tono elegante */
+    --accent-dark:#8f6f38;
+    --grey-vacio:#9aa19a;
+    --focus:#8f6f38;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#1c2128 0%,#262c35 100%);
+    font-family:'Courier New', ui-monospace, monospace;
+    color:var(--ink);
+    padding:24px 16px 60px;
+  }
+  .wrap{max-width:720px;margin:0 auto;}
+  header.top{
+    border-bottom:2px solid var(--accent);
+    padding-bottom:14px;
+    margin-bottom:22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+  }
+  header.top h1{
+    font-size:1.3rem;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    margin:0;
+    color:#f2ede2;
+  }
+  header.top .tag{
+    font-size:0.72rem;
+    color:#9aa0ab;
+    letter-spacing:0.08em;
+  }
+  section{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:18px 20px;
+    margin-bottom:18px;
+  }
+  section h2{
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+    color:var(--accent-dark);
+    margin:0 0 14px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:8px;
+  }
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  label{
+    display:block;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:#6b7268;
+    margin-bottom:5px;
+  }
+  input{
+    width:100%;
+    padding:8px 9px;
+    border:1px solid var(--line);
+    border-radius:2px;
+    font-family:inherit;
+    font-size:0.92rem;
+    background:#fbfbfa;
+    color:var(--ink);
+  }
+  input:focus{
+    outline:2px solid var(--focus);
+    outline-offset:1px;
+    background:#fff;
+  }
+  .det-codigo{
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    font-weight:600;
+  }
+  .fecha-wrap{
+    position:relative;
+  }
+  .fecha-wrap input#fecha{
+    padding-right:34px;
+  }
+  .fecha-icon{
+    position:absolute;
+    right:9px;
+    top:50%;
+    transform:translateY(-50%);
+    pointer-events:none;
+    font-size:0.85rem;
+  }
+  .fecha-picker-overlay{
+    position:absolute;
+    right:0;
+    top:0;
+    width:34px;
+    height:100%;
+    opacity:0;
+    padding:0;
+    margin:0;
+    border:none;
+    background:transparent;
+    cursor:pointer;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+  }
+  th{
+    text-align:left;
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:#6b7268;
+    padding:0 8px 8px;
+  }
+  td{padding:4px 8px 4px 0;}
+  td:last-child{padding-right:0;}
+  .row-del{
+    background:none;
+    border:1px solid var(--line);
+    color:#a33;
+    width:32px;
+    height:32px;
+    border-radius:2px;
+    cursor:pointer;
+    font-size:0.9rem;
+    line-height:1;
+  }
+  .row-del:hover{background:#f6e6e2;}
+  .add-row{
+    margin-top:10px;
+    background:none;
+    border:1px dashed var(--line);
+    color:var(--accent-dark);
+    padding:8px 12px;
+    border-radius:2px;
+    cursor:pointer;
+    font-size:0.8rem;
+    letter-spacing:0.04em;
+    width:100%;
+  }
+  .add-row:hover{border-color:var(--accent);background:#faf1ea;}
+  .send-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    margin-top:24px;
+  }
+  .recipient{
+    font-size:0.72rem;
+    color:#9aa0ab;
+  }
+  .recipient b{color:#f2ede2;}
+  .send-btn{
+    background:var(--accent-dark);
+    color:#fff;
+    border:none;
+    padding:13px 26px;
+    font-family:inherit;
+    font-size:0.82rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    border-radius:2px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .send-btn:hover{background:var(--accent);}
+  .note{
+    font-size:0.68rem;
+    color:#8b9188;
+    margin-top:8px;
+    line-height:1.5;
+  }
+  .scan-btn{
+    background:#2e3542;
+    color:#f2ede2;
+    border:1px solid var(--accent);
+    padding:8px 14px;
+    font-family:inherit;
+    font-size:0.75rem;
+    letter-spacing:0.04em;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  .scan-btn:hover{background:var(--accent-dark);}
+  .scan-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(15,17,20,0.94);
+    z-index:1000;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .scan-overlay.active{display:flex;}
+  .scan-box{
+    position:relative;
+    width:100%;
+    max-width:420px;
+    aspect-ratio:4/3;
+    background:#000;
+    border-radius:4px;
+    overflow:hidden;
+    border:1px solid var(--accent);
+  }
+  .scan-box video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+  .scan-frame{
+    position:absolute;
+    top:30%;
+    left:10%;
+    right:10%;
+    bottom:30%;
+    border:2px solid var(--accent);
+    border-radius:4px;
+    pointer-events:none;
+  }
+  .scan-status{
+    color:#e8e3d6;
+    font-size:0.78rem;
+    margin:16px 0;
+    text-align:center;
+    max-width:420px;
+  }
+  .scan-cancel{
+    background:none;
+    border:1px solid #4a5160;
+    color:#e8e3d6;
+    padding:10px 22px;
+    font-family:inherit;
+    font-size:0.78rem;
+    letter-spacing:0.06em;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  .scan-cancel:hover{border-color:var(--accent);}
+
+  .send-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(15,17,20,0.94);
+    z-index:1000;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+  }
+  .send-overlay.active{display:flex;}
+  .send-box{
+    background:var(--panel);
+    border:1px solid var(--accent);
+    border-radius:4px;
+    padding:20px;
+    width:100%;
+    max-width:480px;
+    max-height:90vh;
+    overflow-y:auto;
+  }
+  .send-box h3{
+    margin:0 0 8px;
+    font-size:0.95rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--accent-dark);
+  }
+  .send-hint{
+    font-size:0.72rem;
+    color:#6b7268;
+    line-height:1.5;
+    margin:0 0 12px;
+  }
+  #sendText{
+    width:100%;
+    min-height:160px;
+    font-family:inherit;
+    font-size:0.78rem;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:2px;
+    background:#f4f2ea;
+    color:var(--ink);
+    resize:vertical;
+    margin-bottom:12px;
+  }
+  .send-actions{
+    display:flex;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .send-action{
+    flex:1;
+    background:#2e3542;
+    color:#f2ede2;
+    border:1px solid var(--line);
+    padding:10px 8px;
+    font-family:inherit;
+    font-size:0.72rem;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  .send-action:hover{border-color:var(--accent);}
+  .send-mail-btn{
+    width:100%;
+    background:var(--accent-dark);
+    color:#fff;
+    border:none;
+    padding:12px;
+    font-family:inherit;
+    font-size:0.8rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    border-radius:2px;
+    cursor:pointer;
+    margin-bottom:10px;
+  }
+  .send-mail-btn:hover{background:var(--accent);}
+  .send-confirm-btn{
+    width:100%;
+    background:none;
+    border:1px solid var(--line);
+    color:#6b7268;
+    padding:10px;
+    font-family:inherit;
+    font-size:0.72rem;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  .send-confirm-btn:hover{border-color:var(--accent-dark);color:var(--accent-dark);}
+  @media (max-width:520px){
+    .grid2{grid-template-columns:1fr;}
+    .send-bar{flex-direction:column;align-items:stretch;}
+    .send-btn{width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>Inventario WTW</h1>
+    <span class="tag">Formato texto · envío por correo</span>
+  </header>
+
+  <form id="mainForm">
+
+    <section>
+      <h2>Cabecera</h2>
+      <div class="grid2">
+        <div>
+          <label for="fecha">Fecha</label>
+          <div class="fecha-wrap">
+            <input type="text" id="fecha" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" required>
+            <input type="date" id="fechaPicker" class="fecha-picker-overlay" tabindex="-1" aria-label="Elegir fecha en calendario">
+            <span class="fecha-icon">📅</span>
+          </div>
+        </div>
+        <div>
+          <label for="codAsociado">Código asociado</label>
+          <input type="text" id="codAsociado" placeholder="Ej. A0234" required>
+        </div>
+        <div>
+          <label for="nombreAsociado">Nombre asociado</label>
+          <input type="text" id="nombreAsociado" placeholder="Nombre completo" required>
+        </div>
+        <div>
+          <label for="numDoc">Número documento</label>
+          <input type="text" id="numDoc" placeholder="Cédula / documento" required>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Detalle</h2>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <button type="button" class="scan-btn" onclick="abrirEscaner()">📷 Escanear con cámara</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:30%">Ubicación</th>
+            <th style="width:32%">Código</th>
+            <th style="width:23%">Cantidad</th>
+            <th style="width:15%"></th>
+          </tr>
+        </thead>
+        <tbody id="detalleBody">
+          <tr>
+            <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
+            <td><input type="text" class="det-codigo" placeholder="Escanea o digita" autofocus></td>
+            <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
+            <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="button" class="add-row" onclick="addRow()">+ Agregar línea</button>
+      <p class="note">Código y Ubicación admiten lector USB/Bluetooth, cámara (toca el campo y luego "Escanear con cámara") o digitación manual. Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea. Ubicación se repite igual que la línea anterior; si la cambias, las líneas nuevas siguientes usan la nueva ubicación.</p>
+      <p class="note">Para escanear la Ubicación: toca ese campo primero (para que quede activo) y luego usa el lector físico o el botón de cámara.</p>
+    </section>
+
+    <div class="send-bar">
+      <div class="recipient">Destinatario(s) fijo(s):<br><b id="recipientLabel"></b></div>
+      <button type="button" class="send-btn" onclick="enviarCorreo()">Enviar por correo</button>
+    </div>
+    <p class="note">Al presionar "Enviar por correo" se abrirá tu aplicación de correo con el mensaje ya redactado en texto plano, listo para revisar y enviar.</p>
+
+  </form>
+</div>
+
+<div id="scanOverlay" class="scan-overlay">
+  <div class="scan-box">
+    <video id="scanVideo" autoplay playsinline muted></video>
+    <div class="scan-frame"></div>
+  </div>
+  <p id="scanStatus" class="scan-status">Apunta la cámara al código de barras…</p>
+  <button type="button" class="scan-cancel" onclick="cerrarEscaner()">Cancelar</button>
+</div>
+
+<div id="sendOverlay" class="send-overlay">
+  <div class="send-box">
+    <h3>Revisa antes de enviar</h3>
+    <p class="send-hint">Guarda esta información con "Copiar" o "Descargar" ANTES de intentar el correo, por si tu app de correo no abre. Así no se pierde nada.</p>
+    <textarea id="sendText" readonly></textarea>
+    <div class="send-actions">
+      <button type="button" id="btnCopiar" class="send-action" onclick="copiarTexto()">📋 Copiar texto</button>
+      <button type="button" class="send-action" onclick="descargarRespaldo()">⬇ Descargar respaldo</button>
+    </div>
+    <button type="button" class="send-mail-btn" onclick="abrirAppCorreo()">✉ Abrir app de correo</button>
+    <button type="button" class="send-confirm-btn" onclick="confirmarYLimpiar()">Ya lo guardé / envié — limpiar formulario</button>
+  </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script>
+// Correo destinatario fijo (ejemplo — reemplazar por el real)
+// Destinatarios fijos — agrega o quita correos aquí, separados por comas.
+// Ejemplo con varios: ["jefe@ejemplo.com", "supervisor@ejemplo.com", "otra_persona@ejemplo.com"]
+const DESTINATARIOS = [
+  "jefe@ejemplo.com"
+];
+document.getElementById('recipientLabel').textContent = DESTINATARIOS.join(', ');
+
+let campoActivoCodigo = null; // último campo Código enfocado, destino del escaneo por cámara
+let ultimaUbicacion = ''; // se repite en líneas nuevas hasta que el usuario la cambie
+
+// ---------- Borrador automático (evita perder datos si se cierra/recarga sin querer) ----------
+const CLAVE_BORRADOR = 'inventario_wtw_borrador';
+
+function guardarBorrador(){
+  try{
+    const filas = [];
+    document.querySelectorAll('#detalleBody tr').forEach(tr => {
+      filas.push({
+        codigo: tr.querySelector('.det-codigo').value,
+        cantidad: tr.querySelector('.det-cantidad').value,
+        ubicacion: tr.querySelector('.det-ubicacion').value
+      });
+    });
+    const datos = {
+      fecha: document.getElementById('fecha').value,
+      codAsociado: document.getElementById('codAsociado').value,
+      nombreAsociado: document.getElementById('nombreAsociado').value,
+      numDoc: document.getElementById('numDoc').value,
+      filas
+    };
+    localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(datos));
+  }catch(err){ /* si el navegador bloquea almacenamiento, seguimos sin autoguardado */ }
+}
+
+function borrarBorrador(){
+  try{ localStorage.removeItem(CLAVE_BORRADOR); }catch(err){}
+}
+
+function restaurarBorrador(){
+  let datos = null;
+  try{
+    const guardado = localStorage.getItem(CLAVE_BORRADOR);
+    if(guardado) datos = JSON.parse(guardado);
+  }catch(err){ return; }
+
+  if(!datos) return;
+
+  const hayAlgo = datos.numDoc || datos.codAsociado || datos.nombreAsociado ||
+    (datos.filas || []).some(f => f.codigo || f.cantidad);
+  if(!hayAlgo) return;
+
+  if(datos.fecha) {
+    document.getElementById('fecha').value = datos.fecha;
+    const partes = datos.fecha.split('/');
+    if(partes.length === 3){
+      document.getElementById('fechaPicker').value = `${partes[2]}-${partes[1]}-${partes[0]}`;
+    }
+  }
+  if(datos.codAsociado) document.getElementById('codAsociado').value = datos.codAsociado;
+  if(datos.nombreAsociado) document.getElementById('nombreAsociado').value = datos.nombreAsociado;
+  if(datos.numDoc) document.getElementById('numDoc').value = datos.numDoc;
+
+  if(datos.filas && datos.filas.length){
+    const tbody = document.getElementById('detalleBody');
+    tbody.innerHTML = '';
+    datos.filas.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
+        <td><input type="text" class="det-codigo" placeholder="Escanea o digita"></td>
+        <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
+        <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
+      `;
+      tbody.appendChild(tr);
+      tr.querySelector('.det-codigo').value = f.codigo || '';
+      tr.querySelector('.det-cantidad').value = f.cantidad || '';
+      tr.querySelector('.det-ubicacion').value = f.ubicacion || '';
+      if(f.ubicacion) ultimaUbicacion = f.ubicacion;
+      wireRow(tr);
+    });
+    campoActivoCodigo = tbody.querySelector('.det-codigo');
+  }
+
+  const aviso = document.createElement('p');
+  aviso.className = 'note';
+  aviso.style.color = 'var(--accent-dark)';
+  aviso.textContent = '⚠ Se recuperó información que quedó sin guardar de una sesión anterior. Revísala antes de continuar.';
+  document.querySelector('header.top').insertAdjacentElement('afterend', aviso);
+}
+
+// ---------- Fecha dd/mm/aaaa ----------
+function formatearFecha(valor){
+  let d = valor.replace(/\D/g,'').slice(0,8);
+  if(d.length >= 5) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
+  if(d.length >= 3) return `${d.slice(0,2)}/${d.slice(2,4)}`;
+  return d;
+}
+
+function fechaValida(str){
+  const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(!m) return false;
+  const dia = parseInt(m[1],10), mes = parseInt(m[2],10), anio = parseInt(m[3],10);
+  if(mes < 1 || mes > 12) return false;
+  const diasMes = new Date(anio, mes, 0).getDate();
+  return dia >= 1 && dia <= diasMes;
+}
+
+const fechaInput = document.getElementById('fecha');
+fechaInput.addEventListener('input', (e) => {
+  e.target.value = formatearFecha(e.target.value);
+  guardarBorrador();
+});
+(function setFechaHoy(){
+  const hoy = new Date();
+  const dd = String(hoy.getDate()).padStart(2,'0');
+  const mm = String(hoy.getMonth()+1).padStart(2,'0');
+  const yyyy = hoy.getFullYear();
+  fechaInput.value = `${dd}/${mm}/${yyyy}`;
+  document.getElementById('fechaPicker').value = `${yyyy}-${mm}-${dd}`;
+})();
+
+document.getElementById('fechaPicker').addEventListener('change', (e) => {
+  const [yyyy, mm, dd] = e.target.value.split('-');
+  if(yyyy && mm && dd){
+    fechaInput.value = `${dd}/${mm}/${yyyy}`;
+    guardarBorrador();
+  }
+});
+
+['codAsociado','nombreAsociado','numDoc'].forEach(id => {
+  document.getElementById(id).addEventListener('input', guardarBorrador);
+});
+
+function wireRow(tr){
+  const codInput = tr.querySelector('.det-codigo');
+  const cantInput = tr.querySelector('.det-cantidad');
+  const ubiInput = tr.querySelector('.det-ubicacion');
+
+  codInput.addEventListener('focus', () => { campoActivoCodigo = codInput; });
+  ubiInput.addEventListener('focus', () => { campoActivoCodigo = ubiInput; });
+
+  // El código siempre se guarda en mayúsculas, sin espacios sueltos
+  codInput.addEventListener('input', () => {
+    const cursor = codInput.selectionStart;
+    codInput.value = codInput.value.toUpperCase();
+    codInput.setSelectionRange(cursor, cursor);
+    guardarBorrador();
+  });
+
+  cantInput.addEventListener('input', guardarBorrador);
+
+  // Si el usuario cambia la ubicación, las líneas nuevas siguientes heredan ese valor.
+  // También se guarda en mayúsculas, igual que código, para que sea escaneable.
+  ubiInput.addEventListener('input', () => {
+    const cursor = ubiInput.selectionStart;
+    ubiInput.value = ubiInput.value.toUpperCase();
+    ubiInput.setSelectionRange(cursor, cursor);
+    ultimaUbicacion = ubiInput.value;
+    guardarBorrador();
+  });
+
+  // Si el usuario edita ubicación manualmente, Enter pasa a Código de la misma fila
+  ubiInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      codInput.focus();
+      codInput.select();
+    }
+  });
+
+  // El lector de código de barras escribe y envía Enter igual que el teclado,
+  // así que este mismo campo sirve para escanear con lector físico o digitar.
+  codInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      cantInput.focus();
+      cantInput.select();
+    }
+  });
+
+  cantInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      const lastRow = document.getElementById('detalleBody').lastElementChild;
+      if(tr === lastRow && cantInput.value.trim() !== ''){
+        addRow(true);
+      } else {
+        const nextRow = tr.nextElementSibling;
+        if(nextRow) nextRow.querySelector('.det-codigo').focus();
+      }
+    }
+  });
+}
+
+function addRow(focusNew){
+  const tbody = document.getElementById('detalleBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
+    <td><input type="text" class="det-codigo" placeholder="Escanea o digita"></td>
+    <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
+    <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelector('.det-ubicacion').value = ultimaUbicacion; // hereda la última ubicación usada
+  wireRow(tr);
+  if(focusNew){
+    tr.querySelector('.det-codigo').focus();
+  }
+}
+
+function removeRow(btn){
+  const tbody = document.getElementById('detalleBody');
+  if(tbody.rows.length > 1){
+    btn.closest('tr').remove();
+    guardarBorrador();
+  }
+}
+
+// Activar el flujo de escaneo/digitación en la primera línea existente
+const primeraFila = document.querySelector('#detalleBody tr');
+wireRow(primeraFila);
+campoActivoCodigo = primeraFila.querySelector('.det-codigo');
+
+// Al cargar la página, recuperar cualquier borrador guardado antes de un cierre/recarga accidental
+restaurarBorrador();
+
+// ---------- Escaneo por cámara (ZXing: funciona en Chrome, Safari, Android e iOS) ----------
+let zxingReader = null;
+
+async function abrirEscaner(){
+  const overlay = document.getElementById('scanOverlay');
+  const status = document.getElementById('scanStatus');
+  const video = document.getElementById('scanVideo');
+
+  const avisoExtra = document.getElementById('scanStatusExtra');
+  if(avisoExtra) avisoExtra.remove();
+
+  if(!window.ZXing){
+    alert('No se pudo cargar el componente de escaneo (revisa tu conexión a internet e intenta de nuevo).');
+    return;
+  }
+
+  if(!campoActivoCodigo){
+    campoActivoCodigo = document.querySelector('#detalleBody tr:last-child .det-codigo');
+  }
+
+  overlay.classList.add('active');
+  status.textContent = 'Apunta la cámara al código de barras…';
+
+  try{
+    zxingReader = new ZXing.BrowserMultiFormatReader();
+    await zxingReader.decodeFromConstraints(
+      { video: { facingMode: { ideal: 'environment' } } },
+      video,
+      (result, err) => {
+        if(result){
+          const eraUbicacion = campoActivoCodigo.classList.contains('det-ubicacion');
+          campoActivoCodigo.value = result.getText().toUpperCase();
+          if(eraUbicacion) ultimaUbicacion = campoActivoCodigo.value;
+          const fila = campoActivoCodigo.closest('tr');
+          cerrarEscaner();
+          if(fila){
+            const siguienteCampo = eraUbicacion
+              ? fila.querySelector('.det-codigo')
+              : fila.querySelector('.det-cantidad');
+            if(siguienteCampo) siguienteCampo.focus();
+          }
+        }
+      }
+    );
+  }catch(err){
+    status.textContent = 'Sin acceso a la cámara. Revisa que el navegador tenga permiso de cámara habilitado para esta página.';
+    const status2 = document.createElement('p');
+    status2.id = 'scanStatusExtra';
+    status2.className = 'scan-status';
+    status2.style.marginTop = '4px';
+    status2.textContent = 'Este archivo debe abrirse desde un enlace https:// (no como archivo suelto) para que el navegador permita usar la cámara.';
+    document.querySelector('.scan-overlay').appendChild(status2);
+  }
+}
+
+function cerrarEscaner(){
+  const overlay = document.getElementById('scanOverlay');
+  overlay.classList.remove('active');
+  if(zxingReader){
+    zxingReader.reset();
+    zxingReader = null;
+  }
+}
+
+
+function enviarCorreo(){
+  const fecha = document.getElementById('fecha').value;
+  const codAsociado = document.getElementById('codAsociado').value.trim();
+  const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
+  const numDoc = document.getElementById('numDoc').value.trim();
+
+  if(!fecha || !codAsociado || !nombreAsociado || !numDoc){
+    alert('Completa todos los campos de la cabecera antes de enviar.');
+    return;
+  }
+
+  if(!fechaValida(fecha)){
+    alert('La fecha debe tener el formato dd/mm/aaaa, por ejemplo 17/07/2026.');
+    return;
+  }
+
+  const codigos = document.querySelectorAll('.det-codigo');
+  const cantidades = document.querySelectorAll('.det-cantidad');
+  const ubicaciones = document.querySelectorAll('.det-ubicacion');
+
+  let detalleLineas = [];
+  let detalleValido = false;
+
+  for(let i=0; i<codigos.length; i++){
+    const cod = codigos[i].value.trim();
+    const cant = cantidades[i].value.trim();
+    const ubi = ubicaciones[i].value.trim();
+    if(cod && cant){
+      detalleValido = true;
+      detalleLineas.push(`${fecha} | ${codAsociado} | ${nombreAsociado} | ${numDoc} | ${ubi} | ${cod} | ${cant}`);
+    }
+  }
+
+  if(!detalleValido){
+    alert('Agrega al menos una línea de detalle con código y cantidad.');
+    return;
+  }
+
+  const asunto = `Inventario WTW - ${codAsociado} - ${fecha}`;
+
+  const cuerpo =
+`INVENTARIO WTW
+
+FECHA | COD. ASOCIADO | NOMBRE ASOCIADO | NUM. DOCUMENTO | UBICACION | CODIGO | CANTIDAD
+${detalleLineas.join('\n')}
+
+--
+Generado automáticamente desde el formulario de registro.`;
+
+  mostrarConfirmacionEnvio(asunto, cuerpo);
+}
+
+function mostrarConfirmacionEnvio(asunto, cuerpo){
+  document.getElementById('sendText').value = cuerpo;
+  document.getElementById('sendOverlay').dataset.asunto = asunto;
+  document.getElementById('sendOverlay').classList.add('active');
+}
+
+function abrirAppCorreo(){
+  const asunto = document.getElementById('sendOverlay').dataset.asunto;
+  const cuerpo = document.getElementById('sendText').value;
+  const mailtoLink = `mailto:${DESTINATARIOS.join(',')}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+  window.location.href = mailtoLink;
+}
+
+async function copiarTexto(){
+  const texto = document.getElementById('sendText').value;
+  const boton = document.getElementById('btnCopiar');
+  try{
+    await navigator.clipboard.writeText(texto);
+    boton.textContent = '✓ Copiado';
+  }catch(err){
+    document.getElementById('sendText').select();
+    document.execCommand('copy');
+    boton.textContent = '✓ Copiado';
+  }
+  setTimeout(() => { boton.textContent = '📋 Copiar texto'; }, 2000);
+}
+
+function descargarRespaldo(){
+  const texto = document.getElementById('sendText').value;
+  const numDoc = document.getElementById('numDoc').value.trim() || 'sin_doc';
+  const blob = new Blob([texto], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `inventario_wtw_${numDoc}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function confirmarYLimpiar(){
+  document.getElementById('sendOverlay').classList.remove('active');
+
+  // Fecha, código asociado y nombre asociado se conservan (mismo turno/asociado).
+  // Solo se limpian: número de documento y las líneas de detalle (código y cantidad).
+  document.getElementById('numDoc').value = '';
+
+  const tbody = document.getElementById('detalleBody');
+  tbody.innerHTML = `
+    <tr>
+      <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
+      <td><input type="text" class="det-codigo" placeholder="Escanea o digita"></td>
+      <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
+      <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
+    </tr>
+  `;
+  const nuevaFila = tbody.querySelector('tr');
+  nuevaFila.querySelector('.det-ubicacion').value = ultimaUbicacion;
+  wireRow(nuevaFila);
+  campoActivoCodigo = nuevaFila.querySelector('.det-codigo');
+  document.getElementById('numDoc').focus();
+
+  // Ya se guardó/envió: se borra el borrador para que no se recupere información ya procesada
+  borrarBorrador();
+  guardarBorrador();
+}
+
+// ---------- Aviso al recargar o cerrar con datos sin guardar ----------
+function hayDatosSinGuardar(){
+  const numDoc = document.getElementById('numDoc').value.trim();
+  const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
+  const codAsociado = document.getElementById('codAsociado').value.trim();
+
+  const codigos = document.querySelectorAll('.det-codigo');
+  const cantidades = document.querySelectorAll('.det-cantidad');
+  const ubicaciones = document.querySelectorAll('.det-ubicacion');
+  let detalleConDatos = false;
+  for(let i=0; i<codigos.length; i++){
+    if(codigos[i].value.trim() || cantidades[i].value.trim() || (ubicaciones[i] && ubicaciones[i].value.trim())){
+      detalleConDatos = true;
+      break;
+    }
+  }
+
+  return !!(numDoc || nombreAsociado || codAsociado || detalleConDatos);
+}
+
+window.addEventListener('beforeunload', function(e){
+  if(hayDatosSinGuardar()){
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+</script>
+
+</body>
+</html>
