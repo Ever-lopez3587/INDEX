@@ -195,12 +195,14 @@
     background:#2e3542;
     color:#f2ede2;
     border:1px solid var(--accent);
-    padding:8px 14px;
+    padding:10px 14px;
     font-family:inherit;
-    font-size:0.75rem;
+    font-size:0.78rem;
     letter-spacing:0.04em;
     border-radius:2px;
     cursor:pointer;
+    width:100%;
+    margin-top:12px;
   }
   .scan-btn:hover{background:var(--accent-dark);}
   .scan-overlay{
@@ -400,9 +402,6 @@
 
     <section>
       <h2>Detalle</h2>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-        <button type="button" class="scan-btn" onclick="abrirEscaner()">📷 Escanear con cámara</button>
-      </div>
       <table>
         <thead>
           <tr>
@@ -421,8 +420,12 @@
           </tr>
         </tbody>
       </table>
+      
+      <!-- Botón de cámara ubicado abajo, antes de agregar línea -->
+      <button type="button" class="scan-btn" onclick="abrirEscaner()">📷 Escanear con cámara</button>
       <button type="button" class="add-row" onclick="addRow()">+ Agregar línea</button>
-      <p class="note">Código y Ubicación admiten lector USB/Bluetooth, cámara (toca el campo y luego "Escanear con cámara") o digitación manual. Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea. Ubicación se repite igual que la línea anterior; si la cambias, las líneas nuevas siguientes usan la nueva ubicación.</p>
+
+      <p class="note" style="margin-top:14px;">Código y Ubicación admiten lector USB/Bluetooth, cámara (toca el campo y luego "Escanear con cámara") o digitación manual. Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea. Ubicación se repite igual que la línea anterior; si la cambias, las líneas nuevas siguientes usan la nueva ubicación.</p>
       <p class="note">Para escanear la Ubicación: toca ese campo primero (para que quede activo) y luego usa el lector físico o el botón de cámara.</p>
     </section>
 
@@ -686,7 +689,6 @@ campoActivoCodigo = primeraFila.querySelector('.det-codigo');
 
 restaurarBorrador();
 
-// ---------- Escaneo por cámara optimizado ----------
 let zxingReader = null;
 
 async function abrirEscaner(){
@@ -710,7 +712,6 @@ async function abrirEscaner(){
   status.textContent = 'Apunta la cámara al código de barras…';
 
   try{
-    // Configuración de formatos admitidos para evitar falsas lecturas erróneas
     const hints = new Map();
     const formats = [
       ZXing.BarcodeFormat.EAN_13,
@@ -723,7 +724,6 @@ async function abrirEscaner(){
 
     zxingReader = new ZXing.BrowserMultiFormatReader(hints);
     
-    // Restricciones de video con mayor resolución para nitidez en las barras
     const constraints = {
       video: {
         facingMode: { ideal: 'environment' },
