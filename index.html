@@ -810,7 +810,7 @@ function enviarCorreo(){
     return;
   }
 
-  const asunto = `Inventario:- ${zona} -${nombreAsociado} -${codAsociado} - ${fecha}`;
+  const asunto = `No. Marbete: ${numDoc} - ${zona} - ${nombreAsociado} - ${codAsociado} - ${fecha}`;
   const encabezadoColumnas = ['FECHA','COD. ASOCIADO','NOMBRE ASOCIADO','ZONA','NUM. DOCUMENTO','UBICACION','CODIGO','CANTIDAD'].join('|');
 
   const cuerpo =
