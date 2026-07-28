@@ -362,14 +362,14 @@
 <div class="wrap">
 
   <header class="top">
-    <h1>Inventario WTW</h1>
+    <h1>Levantado de Inventario</h1>
     <span class="tag">Formato texto · envío por correo</span>
   </header>
 
   <form id="mainForm">
 
     <section>
-      <h2>Cabecera</h2>
+      <h2>Actualizar los siguiente datos</h2>
       <div class="grid2">
         <div>
           <label for="fecha">Fecha</label>
@@ -381,15 +381,19 @@
         </div>
         <div>
           <label for="codAsociado">Código asociado</label>
-          <input type="text" id="codAsociado" placeholder="Ej. A0234" required>
+          <input type="text" id="codAsociado" placeholder="De Avon" required>
         </div>
         <div>
           <label for="nombreAsociado">Nombre asociado</label>
-          <input type="text" id="nombreAsociado" placeholder="Un Nombre y Un Apelledo" required>
+          <input type="text" id="nombreAsociado" placeholder="Un Nombre y Un Apellido" required>
         </div>
         <div>
-          <label for="numDoc">Número documento</label>
-          <input type="text" id="numDoc" placeholder="Cédula / documento" required>
+          <label for="zona">Zona</label>
+          <input type="text" id="zona" placeholder="Ej. CVZ4" required>
+        </div>
+        <div>
+          <label for="numDoc">Número de Marbete</label>
+          <input type="text" id="numDoc" placeholder="Revisar Etiqueta Fisico" required>
         </div>
       </div>
     </section>
@@ -459,9 +463,9 @@
 <script>
 // Correo destinatario fijo (ejemplo — reemplazar por el real)
 // Destinatarios fijos — agrega o quita correos aquí, separados por comas.
-// Ejemplo con varios: ["jefe@ejemplo.com", "supervisor@ejemplo.com", "otra_persona@ejemplo.com"]
+// Ejemplo con varios: ["abidai.lopez@grpopdc.com", "williams.oxlaj@grupopdc.com", "otra_persona@ejemplo.com"]
 const DESTINATARIOS = [
-  "jefe@ejemplo.com"
+  "abidai.lopez@grupopdc.com","williams.oxlaj@grupopdc.com"
 ];
 document.getElementById('recipientLabel').textContent = DESTINATARIOS.join(', ');
 
@@ -485,6 +489,7 @@ function guardarBorrador(){
       fecha: document.getElementById('fecha').value,
       codAsociado: document.getElementById('codAsociado').value,
       nombreAsociado: document.getElementById('nombreAsociado').value,
+      zona: document.getElementById('zona').value,
       numDoc: document.getElementById('numDoc').value,
       filas
     };
@@ -505,7 +510,7 @@ function restaurarBorrador(){
 
   if(!datos) return;
 
-  const hayAlgo = datos.numDoc || datos.codAsociado || datos.nombreAsociado ||
+  const hayAlgo = datos.numDoc || datos.codAsociado || datos.nombreAsociado || datos.zona ||
     (datos.filas || []).some(f => f.codigo || f.cantidad);
   if(!hayAlgo) return;
 
@@ -518,6 +523,7 @@ function restaurarBorrador(){
   }
   if(datos.codAsociado) document.getElementById('codAsociado').value = datos.codAsociado;
   if(datos.nombreAsociado) document.getElementById('nombreAsociado').value = datos.nombreAsociado;
+  if(datos.zona) document.getElementById('zona').value = datos.zona;
   if(datos.numDoc) document.getElementById('numDoc').value = datos.numDoc;
 
   if(datos.filas && datos.filas.length){
@@ -589,6 +595,14 @@ document.getElementById('fechaPicker').addEventListener('change', (e) => {
 
 ['codAsociado','nombreAsociado','numDoc'].forEach(id => {
   document.getElementById(id).addEventListener('input', guardarBorrador);
+});
+
+const zonaInput = document.getElementById('zona');
+zonaInput.addEventListener('input', () => {
+  const cursor = zonaInput.selectionStart;
+  zonaInput.value = zonaInput.value.toUpperCase();
+  zonaInput.setSelectionRange(cursor, cursor);
+  guardarBorrador();
 });
 
 function wireRow(tr){
@@ -754,9 +768,10 @@ function enviarCorreo(){
   const fecha = document.getElementById('fecha').value;
   const codAsociado = document.getElementById('codAsociado').value.trim();
   const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
+  const zona = document.getElementById('zona').value.trim();
   const numDoc = document.getElementById('numDoc').value.trim();
 
-  if(!fecha || !codAsociado || !nombreAsociado || !numDoc){
+  if(!fecha || !codAsociado || !nombreAsociado || !zona || !numDoc){
     alert('Completa todos los campos de la cabecera antes de enviar.');
     return;
   }
@@ -779,7 +794,9 @@ function enviarCorreo(){
     const ubi = ubicaciones[i].value.trim();
     if(cod && cant){
       detalleValido = true;
-      detalleLineas.push(`${fecha} | ${codAsociado} | ${nombreAsociado} | ${numDoc} | ${ubi} | ${cod} | ${cant}`);
+      // Sin espacios junto al "|": al abrir en Excel y separar por ese delimitador,
+      // cada columna queda exacta, sin espacio sobrante al inicio o al final.
+      detalleLineas.push([fecha, codAsociado, nombreAsociado, zona, numDoc, ubi, cod, cant].join('|'));
     }
   }
 
@@ -788,12 +805,13 @@ function enviarCorreo(){
     return;
   }
 
-  const asunto = `Inventario WTW - ${codAsociado} - ${fecha}`;
+  const asunto = `Inventario:- ${zona} -${nombreAsociado} -${codAsociado} - ${fecha}`;
+  const encabezadoColumnas = ['FECHA','COD. ASOCIADO','NOMBRE ASOCIADO','ZONA','NUM. DOCUMENTO','UBICACION','CODIGO','CANTIDAD'].join('|');
 
   const cuerpo =
-`INVENTARIO WTW
+`Detalle de inventario levantado:
 
-FECHA | COD. ASOCIADO | NOMBRE ASOCIADO | NUM. DOCUMENTO | UBICACION | CODIGO | CANTIDAD
+${encabezadoColumnas}
 ${detalleLineas.join('\n')}
 
 --
@@ -847,9 +865,9 @@ function confirmarYLimpiar(){
   document.getElementById('sendOverlay').classList.remove('active');
 
   // Fecha, código asociado y nombre asociado se conservan (mismo turno/asociado).
-  // Solo se limpian: número de documento y las líneas de detalle (código y cantidad).
+  // Solo se limpian: número de documento y las líneas de detalle (código, cantidad y ubicación).
   document.getElementById('numDoc').value = '';
-
+ 
   const tbody = document.getElementById('detalleBody');
   tbody.innerHTML = `
     <tr>
@@ -860,7 +878,7 @@ function confirmarYLimpiar(){
     </tr>
   `;
   const nuevaFila = tbody.querySelector('tr');
-  nuevaFila.querySelector('.det-ubicacion').value = ultimaUbicacion;
+  ultimaUbicacion = ''; // también se olvida la última ubicación usada
   wireRow(nuevaFila);
   campoActivoCodigo = nuevaFila.querySelector('.det-codigo');
   document.getElementById('numDoc').focus();
@@ -875,6 +893,7 @@ function hayDatosSinGuardar(){
   const numDoc = document.getElementById('numDoc').value.trim();
   const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
   const codAsociado = document.getElementById('codAsociado').value.trim();
+  const zona = document.getElementById('zona').value.trim();
 
   const codigos = document.querySelectorAll('.det-codigo');
   const cantidades = document.querySelectorAll('.det-cantidad');
@@ -887,7 +906,7 @@ function hayDatosSinGuardar(){
     }
   }
 
-  return !!(numDoc || nombreAsociado || codAsociado || detalleConDatos);
+  return !!(numDoc || nombreAsociado || codAsociado || zona || detalleConDatos);
 }
 
 window.addEventListener('beforeunload', function(e){
