@@ -18,7 +18,7 @@
   *{box-sizing:border-box;}
   body{
     margin:0;
-    background:linear-gradient(180deg,#1c2128 0%,#262c35 100%);
+    background:linear-gradient(180deg,#acb4bd 0%,#262c35 100%);
     font-family:'Courier New', ui-monospace, monospace;
     color:var(--ink);
     padding:24px 16px 60px;
@@ -88,9 +88,12 @@
     outline-offset:1px;
     background:#fff;
   }
+  .det-ubicacion,
   .det-codigo{
     text-transform:uppercase;
     letter-spacing:0.04em;
+  }
+  .det-codigo{
     font-weight:600;
   }
   .fecha-wrap{
@@ -421,6 +424,7 @@
         </tbody>
       </table>
       
+      <!-- Botón de cámara ubicado abajo, antes de agregar línea -->
       <button type="button" class="scan-btn" onclick="abrirEscaner()">📷 Escanear con cámara</button>
       <button type="button" class="add-row" onclick="addRow()">+ Agregar línea</button>
 
@@ -809,7 +813,7 @@ function enviarCorreo(){
     return;
   }
 
-  const asunto = `Inventario:- ${zona} -${nombreAsociado} -${codAsociado} - ${fecha}`;
+  const asunto = `No. Marbete: ${numDoc} - ${zona} - ${nombreAsociado} - ${codAsociado} - ${fecha}`;
   const encabezadoColumnas = ['FECHA','COD. ASOCIADO','NOMBRE ASOCIADO','ZONA','NUM. DOCUMENTO','UBICACION','CODIGO','CANTIDAD'].join('|');
 
   const cuerpo =
