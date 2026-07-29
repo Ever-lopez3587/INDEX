@@ -118,11 +118,13 @@
   }
   .det-ubicacion,
   .det-marbete,
-  .det-codigo{
+  .det-codigo,
+  #numDoc{
     text-transform:uppercase;
     letter-spacing:0.02em;
   }
-  .det-codigo{
+  .det-codigo,
+  #numDoc{
     font-weight:600;
   }
   .fecha-wrap{
@@ -432,8 +434,8 @@
           <input type="text" id="zona" placeholder="Ej. CVZ4" required>
         </div>
         <div id="campoNumDocWrap">
-          <label for="numDoc">Número de Marbete</label>
-          <input type="text" id="numDoc" placeholder="Revisar Etiqueta Fisico">
+          <label for="numDoc">Número de Marbete (Escaneable / Digitable)</label>
+          <input type="text" id="numDoc" placeholder="Toca aquí para escanear o digitar">
         </div>
       </div>
     </section>
@@ -454,7 +456,7 @@
       <button type="button" class="add-row" onclick="addRow()">+ Agregar línea</button>
 
       <p class="note" id="notaAyuda" style="margin-top:14px;"></p>
-      <p class="note">Para escanear Ubicación o Marbete: toca el campo primero (para que quede activo) y luego usa el lector físico o el botón de cámara.</p>
+      <p class="note">Para escanear Marbete o Códigos: toca el campo primero (para que quede activo) y luego usa el lector físico o el botón de cámara.</p>
     </section>
 
     <div class="send-bar">
@@ -516,15 +518,31 @@ let callbackConfirmacion = null;
 
 const CLAVE_BORRADOR = 'inventario_wtw_borrador_multimodo_v3';
 
+// Configurar comportamiento para el campo Número de Marbete en cabecera
+const numDocInput = document.getElementById('numDoc');
+numDocInput.addEventListener('focus', () => { campoActivoCodigo = numDocInput; });
+numDocInput.addEventListener('input', () => {
+  const cursor = numDocInput.selectionStart;
+  numDocInput.value = numDocInput.value.toUpperCase();
+  numDocInput.setSelectionRange(cursor, cursor);
+  guardarBorrador();
+});
+numDocInput.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    const primerUbi = document.querySelector('#detalleBody tr .det-ubicacion');
+    if(primerUbi) primerUbi.focus();
+  }
+});
+
 function actualizarInterfazModo(){
   const wrapNumDoc = document.getElementById('campoNumDocWrap');
-  const inputNumDoc = document.getElementById('numDoc');
   const thead = document.getElementById('detalleHead');
   const nota = document.getElementById('notaAyuda');
 
   if(modoActual === '1'){
     wrapNumDoc.style.display = 'block';
-    inputNumDoc.setAttribute('required', 'required');
+    numDocInput.setAttribute('required', 'required');
     thead.innerHTML = `
       <tr>
         <th style="width:25%">Ubicación</th>
@@ -533,11 +551,11 @@ function actualizarInterfazModo(){
         <th style="width:8%"></th>
       </tr>
     `;
-    nota.textContent = 'Código ampliado para ver 13+ dígitos sin apretarse. Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea. Ubicación se repite igual que la línea anterior.';
+    nota.textContent = 'Puedes tocar Marbete en cabecera para escanearlo o digitarlo. Enter en Marbete pasa a Ubicación; Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea.';
   } else {
     wrapNumDoc.style.display = 'none';
-    inputNumDoc.removeAttribute('required');
-    inputNumDoc.value = '';
+    numDocInput.removeAttribute('required');
+    numDocInput.value = '';
     thead.innerHTML = `
       <tr>
         <th style="width:22%">Ubicación</th>
@@ -579,7 +597,6 @@ function cambiarModo(nuevoModo){
   });
 
   if(hayDatosDetalle){
-    // Regresamos temporalmente el radio visual al modo actual mientras se decide
     document.querySelector(`input[name="modoInv"][value="${modoActual}"]`).checked = true;
 
     mostrarModalAlerta(
@@ -628,7 +645,7 @@ function guardarBorrador(){
       codAsociado: document.getElementById('codAsociado').value,
       nombreAsociado: document.getElementById('nombreAsociado').value,
       zona: document.getElementById('zona').value,
-      numDoc: document.getElementById('numDoc').value,
+      numDoc: numDocInput.value,
       filas
     };
     localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(datos));
@@ -664,7 +681,7 @@ function restaurarBorrador(){
   if(datos.codAsociado) document.getElementById('codAsociado').value = datos.codAsociado;
   if(datos.nombreAsociado) document.getElementById('nombreAsociado').value = datos.nombreAsociado;
   if(datos.zona) document.getElementById('zona').value = datos.zona;
-  if(datos.numDoc) document.getElementById('numDoc').value = datos.numDoc;
+  if(datos.numDoc) numDocInput.value = datos.numDoc;
 
   if(datos.filas && datos.filas.length){
     const tbody = document.getElementById('detalleBody');
@@ -731,7 +748,7 @@ document.getElementById('fechaPicker').addEventListener('change', (e) => {
   }
 });
 
-['codAsociado','nombreAsociado','numDoc'].forEach(id => {
+['codAsociado','nombreAsociado'].forEach(id => {
   document.getElementById(id).addEventListener('input', guardarBorrador);
 });
 
@@ -893,7 +910,7 @@ async function abrirEscaner(){
   }
 
   if(!campoActivoCodigo){
-    campoActivoCodigo = document.querySelector('#detalleBody tr:last-child .det-codigo');
+    campoActivoCodigo = numDocInput;
   }
 
   overlay.classList.add('active');
@@ -925,26 +942,34 @@ async function abrirEscaner(){
       video,
       (result, err) => {
         if(result){
-          const isUbi = campoActivoCodigo.classList.contains('det-ubicacion');
-          const isMarb = campoActivoCodigo.classList.contains('det-marbete');
+          const isNumDoc = (campoActivoCodigo === numDocInput);
+          const isUbi = campoActivoCodigo.classList && campoActivoCodigo.classList.contains('det-ubicacion');
+          const isMarb = campoActivoCodigo.classList && campoActivoCodigo.classList.contains('det-marbete');
           
           campoActivoCodigo.value = result.getText().toUpperCase();
           if(isUbi) ultimaUbicacion = campoActivoCodigo.value;
           if(isMarb) ultimoMarbete = campoActivoCodigo.value;
 
-          const fila = campoActivoCodigo.closest('tr');
           cerrarEscaner();
-          if(fila){
-            let siguienteCampo;
-            if(isUbi){
-              siguienteCampo = fila.querySelector('.det-marbete') || fila.querySelector('.det-codigo');
-            } else if(isMarb){
-              siguienteCampo = fila.querySelector('.det-codigo');
-            } else {
-              siguienteCampo = fila.querySelector('.det-cantidad');
+
+          if(isNumDoc && modoActual === '1'){
+            const primerUbi = document.querySelector('#detalleBody tr .det-ubicacion');
+            if(primerUbi) primerUbi.focus();
+          } else {
+            const fila = campoActivoCodigo.closest ? campoActivoCodigo.closest('tr') : null;
+            if(fila){
+              let siguienteCampo;
+              if(isUbi){
+                siguienteCampo = fila.querySelector('.det-marbete') || fila.querySelector('.det-codigo');
+              } else if(isMarb){
+                siguienteCampo = fila.querySelector('.det-codigo');
+              } else {
+                siguienteCampo = fila.querySelector('.det-cantidad');
+              }
+              if(siguienteCampo) siguienteCampo.focus();
             }
-            if(siguienteCampo) siguienteCampo.focus();
           }
+          guardarBorrador();
         }
       }
     );
@@ -973,7 +998,7 @@ function enviarCorreo(){
   const codAsociado = document.getElementById('codAsociado').value.trim();
   const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
   const zona = document.getElementById('zona').value.trim();
-  const numDoc = document.getElementById('numDoc').value.trim();
+  const numDoc = numDocInput.value.trim();
 
   if(!fecha || !codAsociado || !nombreAsociado || !zona){
     alert('Completa todos los campos generales de la cabecera antes de enviar.');
@@ -1073,7 +1098,7 @@ async function copiarTexto(){
 
 function descargarRespaldo(){
   const texto = document.getElementById('sendText').value;
-  const numDoc = document.getElementById('numDoc').value.trim() || 'multimarbete';
+  const numDoc = numDocInput.value.trim() || 'multimarbete';
   const blob = new Blob([texto], {type:'text/plain'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1088,20 +1113,20 @@ function descargarRespaldo(){
 function confirmarYLimpiar(){
   document.getElementById('sendOverlay').classList.remove('active');
 
-  document.getElementById('numDoc').value = '';
+  numDocInput.value = '';
   const tbody = document.getElementById('detalleBody');
   tbody.innerHTML = '';
   ultimaUbicacion = '';
   ultimoMarbete = '';
   addRow();
-  document.getElementById('zona').focus();
+  numDocInput.focus();
 
   borrarBorrador();
   guardarBorrador();
 }
 
 function hayDatosSinGuardar(){
-  const numDoc = document.getElementById('numDoc').value.trim();
+  const numDoc = numDocInput.value.trim();
   const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
   const codAsociado = document.getElementById('codAsociado').value.trim();
   const zona = document.getElementById('zona').value.trim();
