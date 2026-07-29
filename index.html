@@ -107,7 +107,7 @@
     border:1px solid var(--line);
     border-radius:2px;
     font-family:inherit;
-    font-size:0.78rem; /* Texto más pequeño dentro de los textboxes */
+    font-size:0.78rem;
     background:#fbfbfa;
     color:var(--ink);
   }
@@ -332,7 +332,7 @@
   }
   #sendText{
     width:100%;
-    min-height:160px;
+    min-height:130px;
     font-family:inherit;
     font-size:0.78rem;
     padding:10px;
@@ -346,7 +346,7 @@
   .send-actions{
     display:flex;
     gap:8px;
-    margin-bottom:14px;
+    margin-bottom:10px;
   }
   .send-action{
     flex:1;
@@ -372,7 +372,7 @@
     letter-spacing:0.05em;
     border-radius:2px;
     cursor:pointer;
-    margin-bottom:10px;
+    margin-bottom:8px;
   }
   .send-mail-btn:hover{background:var(--accent);}
   .send-confirm-btn{
@@ -444,26 +444,29 @@
       <h2>Detalle</h2>
       <table>
         <thead id="detalleHead">
-          <!-- Anchos optimizados para 13+ dígitos -->
+          <!-- Anchos optimizados -->
         </thead>
         <tbody id="detalleBody">
           <!-- Filas dinámicas -->
         </tbody>
       </table>
       
-      <!-- Botón de cámara ubicado abajo, antes de agregar línea -->
       <button type="button" class="scan-btn" onclick="abrirEscaner()">📷 Escanear con cámara</button>
       <button type="button" class="add-row" onclick="addRow()">+ Agregar línea</button>
 
       <p class="note" id="notaAyuda" style="margin-top:14px;"></p>
-      <p class="note">Para escanear Marbete o Códigos: toca el campo primero (para que quede activo) y luego usa el lector físico o el botón de cámara.</p>
     </section>
 
     <div class="send-bar">
       <div class="recipient">Destinatario(s) fijo(s):<br><b id="recipientLabel"></b></div>
       <button type="button" class="send-btn" onclick="enviarCorreo()">Enviar por correo</button>
     </div>
-    <p class="note">Al presionar "Enviar por correo" se abrirá tu aplicación de correo con el mensaje ya redactado en texto plano, listo para revisar y enviar.</p>
+
+    <!-- Texto requerido debajo del botón enviar por correo -->
+    <p class="note" style="margin-top:14px; line-height: 1.6;">
+      Código ampliado para ver 13+ dígitos sin apretarse. Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea. Ubicación se repite igual que la línea anterior.<br>
+      Para escanear Ubicación o Marbete: toca el campo primero (para que quede activo) y luego usa el lector físico o el botón de cámara.
+    </p>
 
   </form>
 </div>
@@ -481,13 +484,24 @@
   <div class="send-box">
     <h3>Revisa antes de enviar</h3>
     <p class="send-hint">Guarda esta información con "Copiar" o "Descargar" ANTES de intentar el correo, por si tu app de correo no abre. Así no se pierde nada.</p>
+    
+    <!-- Campo para comentario adicional -->
+    <div style="margin-bottom:10px;">
+      <label for="comentarioExtra">Comentario adicional (Opcional):</label>
+      <input type="text" id="comentarioExtra" placeholder="Escribe observaciones o notas adicionales..." oninput="actualizarTextoEnvio()">
+    </div>
+
     <textarea id="sendText" readonly></textarea>
     <div class="send-actions">
       <button type="button" id="btnCopiar" class="send-action" onclick="copiarTexto()">📋 Copiar texto</button>
       <button type="button" class="send-action" onclick="descargarRespaldo()">⬇ Descargar respaldo</button>
     </div>
     <button type="button" class="send-mail-btn" onclick="abrirAppCorreo()">✉ Abrir app de correo</button>
-    <button type="button" class="send-confirm-btn" onclick="confirmarYLimpiar()">Ya lo guardé / envié — limpiar formulario</button>
+    
+    <div style="display:flex; gap:8px;">
+      <button type="button" class="send-confirm-btn" onclick="cerrarModalEnvio()" style="flex:1;">❌ Cancelar</button>
+      <button type="button" class="send-confirm-btn" onclick="confirmarYLimpiar()" style="flex:1;">✔ Limpiar formulario</button>
+    </div>
   </div>
 </div>
 
@@ -510,15 +524,15 @@ const DESTINATARIOS = [
 ];
 document.getElementById('recipientLabel').textContent = DESTINATARIOS.join(', ');
 
-let modoActual = '1'; // '1' = Marbete en cabecera, '2' = Marbete en detalle
+let modoActual = '1';
 let campoActivoCodigo = null;
 let ultimaUbicacion = '';
 let ultimoMarbete = '';
 let callbackConfirmacion = null;
+let datosEnvioActual = { asunto: '', detalleLineas: [], modo: '1' };
 
 const CLAVE_BORRADOR = 'inventario_wtw_borrador_multimodo_v3';
 
-// Configurar comportamiento para el campo Número de Marbete en cabecera
 const numDocInput = document.getElementById('numDoc');
 numDocInput.addEventListener('focus', () => { campoActivoCodigo = numDocInput; });
 numDocInput.addEventListener('input', () => {
@@ -551,7 +565,7 @@ function actualizarInterfazModo(){
         <th style="width:8%"></th>
       </tr>
     `;
-    nota.textContent = 'Puedes tocar Marbete en cabecera para escanearlo o digitarlo. Enter en Marbete pasa a Ubicación; Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea.';
+    nota.textContent = 'Marbete en cabecera activo. Enter en Marbete pasa a Ubicación; Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea.';
   } else {
     wrapNumDoc.style.display = 'none';
     numDocInput.removeAttribute('required');
@@ -565,7 +579,7 @@ function actualizarInterfazModo(){
         <th style="width:4%"></th>
       </tr>
     `;
-    nota.textContent = 'Campos dimensionados para visualizar cómodamente 13+ caracteres en código y repetirse automáticamente en cada línea nueva. Enter avanza secuencialmente.';
+    nota.textContent = 'Marbete en detalle activo. Enter avanza secuencialmente por cada campo de la línea.';
   }
 }
 
@@ -887,7 +901,6 @@ function removeRow(btn){
   }
 }
 
-// Inicializar primera fila
 actualizarInterfazModo();
 const tbodyIni = document.getElementById('detalleBody');
 tbodyIni.innerHTML = '';
@@ -1048,35 +1061,43 @@ function enviarCorreo(){
     return;
   }
 
-  let asunto, encabezadoColumnas;
+  let asunto;
   if(modoActual === '1'){
     asunto = `No. Marbete: ${numDoc} - ${zona} - ${nombreAsociado} - ${codAsociado} - ${fecha}`;
-    encabezadoColumnas = ['FECHA','COD. ASOCIADO','NOMBRE ASOCIADO','ZONA','NUM. DOCUMENTO','UBICACION','CODIGO','CANTIDAD'].join('|');
   } else {
     asunto = `Inventario Detalle Marbetes - ${zona} - ${nombreAsociado} - ${codAsociado} - ${fecha}`;
-    encabezadoColumnas = ['FECHA','COD. ASOCIADO','NOMBRE ASOCIADO','ZONA','MARBETE','UBICACION','CODIGO','CANTIDAD'].join('|');
   }
 
-  const cuerpo =
-`Detalle de inventario levantado:
-
-${encabezadoColumnas}
-${detalleLineas.join('\n')}
-
---
-Generado automáticamente desde el formulario de registro.`;
-
-  mostrarConfirmacionEnvio(asunto, cuerpo);
-}
-
-function mostrarConfirmacionEnvio(asunto, cuerpo){
-  document.getElementById('sendText').value = cuerpo;
-  document.getElementById('sendOverlay').dataset.asunto = asunto;
+  datosEnvioActual = { asunto, detalleLineas, modo: modoActual };
+  actualizarTextoEnvio();
   document.getElementById('sendOverlay').classList.add('active');
 }
 
+function actualizarTextoEnvio(){
+  const comentario = document.getElementById('comentarioExtra').value.trim();
+  let encabezadoColumnas;
+  if(datosEnvioActual.modo === '1'){
+    encabezadoColumnas = ['FECHA','COD. ASOCIADO','NOMBRE ASOCIADO','ZONA','NUM. DOCUMENTO','UBICACION','CODIGO','CANTIDAD'].join('|');
+  } else {
+    encabezadoColumnas = ['FECHA','COD. ASOCIADO','NOMBRE ASOCIADO','ZONA','MARBETE','UBICACION','CODIGO','CANTIDAD'].join('|');
+  }
+
+  let cuerpo = `Detalle de inventario levantado:\n\n${encabezadoColumnas}\n${datosEnvioActual.detalleLineas.join('\n')}`;
+  
+  if(comentario){
+    cuerpo += `\n\nComentario adicional:\n${comentario}`;
+  }
+
+  cuerpo += `\n\n--\nGenerado automáticamente desde el formulario de registro.`;
+  document.getElementById('sendText').value = cuerpo;
+}
+
+function cerrarModalEnvio(){
+  document.getElementById('sendOverlay').classList.remove('active');
+}
+
 function abrirAppCorreo(){
-  const asunto = document.getElementById('sendOverlay').dataset.asunto;
+  const asunto = datosEnvioActual.asunto;
   const cuerpo = document.getElementById('sendText').value;
   const mailtoLink = `mailto:${DESTINATARIOS.join(',')}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
   window.location.href = mailtoLink;
@@ -1114,6 +1135,7 @@ function confirmarYLimpiar(){
   document.getElementById('sendOverlay').classList.remove('active');
 
   numDocInput.value = '';
+  document.getElementById('comentarioExtra').value = '';
   const tbody = document.getElementById('detalleBody');
   tbody.innerHTML = '';
   ultimaUbicacion = '';
