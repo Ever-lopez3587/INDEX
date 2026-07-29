@@ -489,6 +489,18 @@
   </div>
 </div>
 
+<!-- Modal personalizado para Alertas -->
+<div id="confirmOverlay" class="send-overlay">
+  <div class="send-box" style="max-width:400px;">
+    <h3 id="confirmTitle" style="color:var(--accent-dark);">Alerta!!!</h3>
+    <p id="confirmText" class="send-hint" style="font-size:0.78rem; color:var(--ink); margin-bottom:16px;"></p>
+    <div style="display:flex; gap:10px;">
+      <button type="button" class="send-action" onclick="resolverConfirmacion(false)" style="background:#2e3542; color:#f2ede2;">Cancelar</button>
+      <button type="button" class="send-mail-btn" style="margin:0; flex:1;" onclick="resolverConfirmacion(true)">Aceptar</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script>
 const DESTINATARIOS = [
@@ -500,6 +512,7 @@ let modoActual = '1'; // '1' = Marbete en cabecera, '2' = Marbete en detalle
 let campoActivoCodigo = null;
 let ultimaUbicacion = '';
 let ultimoMarbete = '';
+let callbackConfirmacion = null;
 
 const CLAVE_BORRADOR = 'inventario_wtw_borrador_multimodo_v3';
 
@@ -512,7 +525,6 @@ function actualizarInterfazModo(){
   if(modoActual === '1'){
     wrapNumDoc.style.display = 'block';
     inputNumDoc.setAttribute('required', 'required');
-    // Código con mayor ancho (55%) para visualizar holgadamente 13+ dígitos con letra compacta
     thead.innerHTML = `
       <tr>
         <th style="width:25%">Ubicación</th>
@@ -526,7 +538,6 @@ function actualizarInterfazModo(){
     wrapNumDoc.style.display = 'none';
     inputNumDoc.removeAttribute('required');
     inputNumDoc.value = '';
-    // Código con ancho optimizado (44%) para 13+ dígitos en modo detalle
     thead.innerHTML = `
       <tr>
         <th style="width:22%">Ubicación</th>
@@ -538,6 +549,21 @@ function actualizarInterfazModo(){
     `;
     nota.textContent = 'Campos dimensionados para visualizar cómodamente 13+ caracteres en código y repetirse automáticamente en cada línea nueva. Enter avanza secuencialmente.';
   }
+}
+
+function mostrarModalAlerta(titulo, mensaje, onAceptar){
+  document.getElementById('confirmTitle').textContent = titulo;
+  document.getElementById('confirmText').textContent = mensaje;
+  callbackConfirmacion = onAceptar;
+  document.getElementById('confirmOverlay').classList.add('active');
+}
+
+function resolverConfirmacion(aceptar){
+  document.getElementById('confirmOverlay').classList.remove('active');
+  if(aceptar && typeof callbackConfirmacion === 'function'){
+    callbackConfirmacion();
+  }
+  callbackConfirmacion = null;
 }
 
 function cambiarModo(nuevoModo){
@@ -553,12 +579,24 @@ function cambiarModo(nuevoModo){
   });
 
   if(hayDatosDetalle){
-    const confirmar = confirm('Cambiar de opción borrará las líneas de detalle que ya capturaste. ¿Deseas continuar?');
-    if(!confirmar){
-      // El navegador ya marcó el radio nuevo como seleccionado; lo regresamos al modo actual
-      document.querySelector(`input[name="modoInv"][value="${modoActual}"]`).checked = true;
-      return;
-    }
+    // Regresamos temporalmente el radio visual al modo actual mientras se decide
+    document.querySelector(`input[name="modoInv"][value="${modoActual}"]`).checked = true;
+
+    mostrarModalAlerta(
+      'Alerta!!!',
+      'Cambiar de opción borrará las líneas de detalle que ya capturaste. ¿Deseas continuar?',
+      () => {
+        modoActual = nuevoModo;
+        document.querySelector(`input[name="modoInv"][value="${nuevoModo}"]`).checked = true;
+        actualizarInterfazModo();
+        
+        const tbody = document.getElementById('detalleBody');
+        tbody.innerHTML = '';
+        addRow();
+        guardarBorrador();
+      }
+    );
+    return;
   }
 
   modoActual = nuevoModo;
