@@ -541,6 +541,26 @@ function actualizarInterfazModo(){
 }
 
 function cambiarModo(nuevoModo){
+  if(nuevoModo === modoActual) return;
+
+  const hayDatosDetalle = Array.from(document.querySelectorAll('#detalleBody tr')).some(tr => {
+    const cod = tr.querySelector('.det-codigo').value.trim();
+    const cant = tr.querySelector('.det-cantidad').value.trim();
+    const ubi = tr.querySelector('.det-ubicacion').value.trim();
+    const marbInput = tr.querySelector('.det-marbete');
+    const marb = marbInput ? marbInput.value.trim() : '';
+    return cod || cant || ubi || marb;
+  });
+
+  if(hayDatosDetalle){
+    const confirmar = confirm('Cambiar de opción borrará las líneas de detalle que ya capturaste. ¿Deseas continuar?');
+    if(!confirmar){
+      // El navegador ya marcó el radio nuevo como seleccionado; lo regresamos al modo actual
+      document.querySelector(`input[name="modoInv"][value="${modoActual}"]`).checked = true;
+      return;
+    }
+  }
+
   modoActual = nuevoModo;
   document.querySelector(`input[name="modoInv"][value="${nuevoModo}"]`).checked = true;
   actualizarInterfazModo();
