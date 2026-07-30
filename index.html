@@ -8,11 +8,11 @@
   :root{
     --ink:#2b2f36;
     --paper:#1c2128;
-    --panel:#fbf9f5;
+    --panel:#fbf5f5;
     --line:#ded7c8;
     --accent:#b6904f;   /* latón, tono elegante */
     --accent-dark:#8f6f38;
-    --grey-vacio:#9aa19a;
+    --grey-vacio:#9c9aa1;
     --focus:#8f3838;
   }
   *{box-sizing:border-box;}
@@ -219,6 +219,7 @@
     white-space:nowrap;
   }
   .send-btn:hover{background:var(--accent);}
+  #btnGuardarSheet:hover{background:#4a9a72 !important;}
   .note{
     font-size:0.68rem;
     color:#8b9188;
@@ -459,8 +460,12 @@
 
     <div class="send-bar">
       <div class="recipient">Destinatario(s) fijo(s):<br><b id="recipientLabel"></b></div>
-      <button type="button" class="send-btn" onclick="enviarCorreo()">Enviar por correo</button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="button" class="send-btn" id="btnGuardarSheet" style="background:#3a7d5c;" onclick="guardarEnSheetClick()">💾 Guardar en Sheet</button>
+        <button type="button" class="send-btn" onclick="enviarCorreo()">Enviar por correo</button>
+      </div>
     </div>
+    <p class="note" id="sheetStatus" style="margin-top:8px;"></p>
 
     <!-- Texto requerido debajo del botón enviar por correo -->
     <p class="note" style="margin-top:14px; line-height: 1.6;">
@@ -523,6 +528,9 @@ const DESTINATARIOS = [
   "abidai.lopez@grupopdc.com","williams.oxlaj@grupopdc.com"
 ];
 document.getElementById('recipientLabel').textContent = DESTINATARIOS.join(', ');
+
+// Reemplaza esto con la URL de tu Web App de Apps Script (Implementar > Nueva implementación > Aplicación web)
+const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyqZ02CU8u7U3E9rKhiNcSEZYQRNmDge0n5ET0UEBBRp_RbplKWlwwWdZufembphe_T/exec';
 
 let modoActual = '1';
 let campoActivoCodigo = null;
@@ -1003,6 +1011,103 @@ function cerrarEscaner(){
   if(zxingReader){
     zxingReader.reset();
     zxingReader = null;
+  }
+}
+
+function recolectarDatosFormulario(){
+  const fecha = document.getElementById('fecha').value;
+  const codAsociado = document.getElementById('codAsociado').value.trim();
+  const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
+  const zona = document.getElementById('zona').value.trim();
+  const numDoc = numDocInput.value.trim();
+
+  if(!fecha || !codAsociado || !nombreAsociado || !zona){
+    alert('Completa todos los campos generales de la cabecera antes de guardar.');
+    return null;
+  }
+
+  if(modoActual === '1' && !numDoc){
+    alert('Completa el número de marbete.');
+    return null;
+  }
+
+  if(!fechaValida(fecha)){
+    alert('La fecha debe tener el formato dd/mm/aaaa, por ejemplo 17/07/2026.');
+    return null;
+  }
+
+  const codigos = document.querySelectorAll('.det-codigo');
+  const cantidades = document.querySelectorAll('.det-cantidad');
+  const ubicaciones = document.querySelectorAll('.det-ubicacion');
+  const marbetes = document.querySelectorAll('.det-marbete');
+
+  const filas = [];
+  for(let i=0; i<codigos.length; i++){
+    const cod = codigos[i].value.trim();
+    const cant = cantidades[i].value.trim();
+    const ubi = ubicaciones[i].value.trim();
+    const marb = marbetes[i] ? marbetes[i].value.trim() : '';
+
+    if(cod && cant){
+      if(modoActual === '2' && !marb){
+        alert(`Fila ${i+1}: Falta el número de marbete.`);
+        return null;
+      }
+      filas.push({
+        ubicacion: ubi,
+        marbete: modoActual === '2' ? marb : numDoc,
+        codigo: cod,
+        cantidad: cant
+      });
+    }
+  }
+
+  if(!filas.length){
+    alert('Agrega al menos una línea de detalle con código y cantidad válidos.');
+    return null;
+  }
+
+  return {
+    fecha, codAsociado, nombreAsociado, zona,
+    filas
+  };
+}
+
+async function guardarEnSheetClick(){
+  const statusEl = document.getElementById('sheetStatus');
+  const boton = document.getElementById('btnGuardarSheet');
+
+  if(SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0){
+    alert('Falta configurar la URL del Web App de Google Sheets en el código (SHEET_WEBAPP_URL).');
+    return;
+  }
+
+  const datos = recolectarDatosFormulario();
+  if(!datos) return;
+
+  boton.disabled = true;
+  statusEl.style.color = '#8b9188';
+  statusEl.textContent = 'Guardando en Google Sheet…';
+
+  try{
+    await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(datos)
+    });
+    statusEl.style.color = 'var(--accent-dark)';
+    statusEl.textContent = '✓ Enviado al Sheet (verifica en la hoja que la fila haya llegado).';
+    mostrarModalAlerta(
+      'Guardado enviado',
+      '¿Deseas limpiar el formulario para la siguiente captura?',
+      confirmarYLimpiar
+    );
+  }catch(err){
+    statusEl.style.color = '#a33';
+    statusEl.textContent = '⚠ No se pudo conectar con Google Sheet. Revisa tu conexión e intenta de nuevo.';
+  }finally{
+    boton.disabled = false;
   }
 }
 
