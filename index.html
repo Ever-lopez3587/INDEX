@@ -10,7 +10,7 @@
     --paper:#1c2128;
     --panel:#fbf5f5;
     --line:#ded7c8;
-    --accent:#b6904f;   /* latón, tono elegante */
+    --accent:#b6904f;
     --accent-dark:#8f6f38;
     --grey-vacio:#9c9aa1;
     --focus:#8f3838;
@@ -501,6 +501,12 @@
       <button type="button" class="scan-btn" onclick="abrirEscaner()">📷 Escanear con cámara</button>
       <button type="button" class="add-row" onclick="addRow()">+ Agregar línea</button>
 
+      <!-- Contador reubicado abajo -->
+      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-dark); font-weight: bold;">
+        <span>Total líneas Scaneadas:</span>
+        <span id="contadorLineas" style="color:var(--focus); font-size:0.95rem; font-weight:bold;">0</span>
+      </div>
+
       <p class="note" id="notaAyuda" style="margin-top:14px;"></p>
     </section>
 
@@ -571,11 +577,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script>
 // =========================================================================
-// CATÁLOGO DE PRODUCTOS (Aquí puedes incluir tus 23,449 líneas)
-// Cada código (ya sea CODIGO_PROVEEDOR o CODIGO_PT) apunta a su descripción.
+// CATÁLOGO DE PRODUCTOS (Agrega aquí tus 23,449 líneas)
 // =========================================================================
 const catalogoProductos = {
- '0000006691009': 'FOLLETO CFT GU C09',	'91009': 'FOLLETO CFT GU C09',
+  // Pega aquí todas tus líneas generadas desde Excel en formato:
+  // 'CODIGO_PROVEEDOR_O_PT': 'DESCRIPCION',
+
+   '0000006691009': 'FOLLETO CFT GU C09',	'91009': 'FOLLETO CFT GU C09',
 '0000104432240': 'F $VESTIDO CRISTA ROJO M',	'1044322': 'F $VESTIDO CRISTA ROJO M',
 '0000115269927': 'SA$NDALIA BELLA NEG 38',	'26994': 'SA$NDALIA BELLA NEG 38',
 '0000550306621': 'L $PANTY ISABELL PX2 EG',	'30662': 'L $PANTY ISABELL PX2 EG',
@@ -22383,8 +22391,6 @@ const catalogoProductos = {
 '9786074041576': 'N $MI PEQ BIBLIO RS PRINC',	'81202': 'N $MI PEQ BIBLIO RS PRINC',
 '9981896179091': 'G $LB DISNEY PRINCESS ARI',	'1235755': 'G $LB DISNEY PRINCESS ARI',
 
-  // Agrega aquí el resto de tus registros o genera el diccionario desde Excel:
-  // "CODIGO": "DESCRIPCION",
 };
 
 function buscarDescripcion(codigo) {
@@ -22393,7 +22399,18 @@ function buscarDescripcion(codigo) {
   return catalogoProductos[codigoLim] || "⚠️ CÓDIGO NO ENCONTRADO EN CATÁLOGO";
 }
 
-// CONTRASEÑA DE ACCESO (Puedes cambiarla aquí)
+function actualizarContador() {
+  const filas = document.querySelectorAll('#detalleBody tr');
+  let total = 0;
+  filas.forEach(tr => {
+    const cod = tr.querySelector('.det-codigo').value.trim();
+    if(cod) total++;
+  });
+  const contadorEl = document.getElementById('contadorLineas');
+  if(contadorEl) contadorEl.textContent = total;
+}
+
+// CONTRASEÑA DE ACCESO
 const CONTRASENA_ACCESO = "WTW2026";
 
 function togglePasswordVisibility(){
@@ -22585,6 +22602,8 @@ function guardarBorrador(){
     };
     localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(datos));
   }catch(err){}
+  
+  actualizarContador();
 }
 
 function borrarBorrador(){
@@ -22632,7 +22651,6 @@ function restaurarBorrador(){
       tr.querySelector('.det-cantidad').value = f.cantidad || '';
       tr.querySelector('.det-ubicacion').value = f.ubicacion || '';
       
-      // Actualizar descripción al restaurar
       tr.querySelector('.det-desc').textContent = buscarDescripcion(f.codigo);
 
       if(f.ubicacion) ultimaUbicacion = f.ubicacion;
@@ -22650,6 +22668,7 @@ function restaurarBorrador(){
   aviso.style.color = 'var(--accent-dark)';
   aviso.textContent = '⚠ Se recuperó información que quedó sin guardar de una sesión anterior. Revísala antes de continuar.';
   document.querySelector('header.top').insertAdjacentElement('afterend', aviso);
+  actualizarContador();
 }
 
 function formatearFecha(valor){
@@ -22746,7 +22765,6 @@ function wireRow(tr){
     codInput.value = codInput.value.toUpperCase();
     codInput.setSelectionRange(cursor, cursor);
     
-    // Buscar y mostrar la descripción al escribir/escanear
     descDiv.textContent = buscarDescripcion(codInput.value);
 
     guardarBorrador();
@@ -22846,6 +22864,7 @@ function addRow(focusField = 'ubicacion'){
   } else {
     tr.querySelector('.det-ubicacion').focus();
   }
+  actualizarContador();
 }
 
 function removeRow(btn){
@@ -22853,6 +22872,7 @@ function removeRow(btn){
   if(tbody.rows.length > 1){
     btn.closest('tr').remove();
     guardarBorrador();
+    actualizarContador();
   }
 }
 
@@ -22922,7 +22942,6 @@ async function abrirEscaner(){
           if(esCodigo){
             const fila = campoActivoCodigo.closest('tr');
             if(fila){
-              // Actualizar descripción al escanear con cámara
               fila.querySelector('.det-desc').textContent = buscarDescripcion(campoActivoCodigo.value);
 
               if(document.getElementById('checkUnitarios').checked){
