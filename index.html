@@ -308,6 +308,19 @@
     padding:16px;
   }
   .send-overlay.active{display:flex;}
+
+  .password-overlay{
+    display:flex;
+    position:fixed;
+    inset:0;
+    background:rgba(15,17,20,0.98);
+    z-index:2000;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+  }
+  .password-overlay.hidden{display:none;}
+
   .send-box{
     background:var(--panel);
     border:1px solid var(--accent);
@@ -396,6 +409,21 @@
 </style>
 </head>
 <body>
+
+<!-- Modal de Contraseña de Acceso -->
+<div id="passwordOverlay" class="password-overlay">
+  <div class="send-box" style="max-width:380px; text-align:center;">
+    <h3>Acceso Protegido</h3>
+    <p class="send-hint">Ingresa la contraseña para acceder al formato de inventario.</p>
+    <div style="position:relative; margin-bottom:12px;">
+      <input type="password" id="inputPassword" placeholder="Contraseña..." style="text-align:center; font-size:1rem; letter-spacing:0.1em; padding-right:40px;">
+      <button type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.1rem; padding:4px; line-height:1;" title="Ver/Ocultar contraseña">👁️</button>
+    </div>
+    <button type="button" class="send-mail-btn" onclick="verificarPassword()">Ingresar</button>
+    <p id="errorPassword" class="note" style="color:#a33; margin-top:8px; display:none;">Contraseña incorrecta.</p>
+  </div>
+</div>
+
 <div class="wrap">
 
   <header class="top">
@@ -524,12 +552,56 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script>
+// CONTRASEÑA DE ACCESO (Puedes cambiarla aquí)
+const CONTRASENA_ACCESO = "WTW2026";
+
+function togglePasswordVisibility(){
+  const input = document.getElementById('inputPassword');
+  const btn = document.getElementById('togglePasswordBtn');
+  if(input.type === 'password'){
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+  }
+}
+
+function verificarPassword(){
+  const input = document.getElementById('inputPassword').value;
+  const errorEl = document.getElementById('errorPassword');
+  if(input === CONTRASENA_ACCESO){
+    sessionStorage.setItem('wtw_autenticado', 'true');
+    document.getElementById('passwordOverlay').classList.add('hidden');
+    document.getElementById('codAsociado').focus();
+  } else {
+    errorEl.style.display = 'block';
+    document.getElementById('inputPassword').value = '';
+    document.getElementById('inputPassword').focus();
+  }
+}
+
+document.getElementById('inputPassword').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    verificarPassword();
+  }
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  if(sessionStorage.getItem('wtw_autenticado') === 'true'){
+    document.getElementById('passwordOverlay').classList.add('hidden');
+  } else {
+    document.getElementById('inputPassword').focus();
+  }
+});
+
 const DESTINATARIOS = [
   "abidai.lopez@grupopdc.com","williams.oxlaj@grupopdc.com"
 ];
 document.getElementById('recipientLabel').textContent = DESTINATARIOS.join(', ');
 
-// Reemplaza esto con la URL de tu Web App de Apps Script (Implementar > Nueva implementación > Aplicación web)
+// Reemplaza esto con la URL de你的 Web App de Apps Script (Implementar > Nueva implementación > Aplicación web)
 const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyqZ02CU8u7U3E9rKhiNcSEZYQRNmDge0n5ET0UEBBRp_RbplKWlwwWdZufembphe_T/exec';
 
 let modoActual = '1';
