@@ -46,7 +46,10 @@
   }
   .mode-selector{
     display:flex;
-    gap:20px;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
     margin-bottom:18px;
     background:var(--panel);
     border:1px solid var(--line);
@@ -56,7 +59,6 @@
     text-transform:uppercase;
     letter-spacing:0.06em;
     color:var(--accent-dark);
-    align-items:center;
   }
   .mode-selector label{
     display:flex;
@@ -67,7 +69,8 @@
     font-weight:600;
     margin:0;
   }
-  .mode-selector input[type="radio"]{
+  .mode-selector input[type="radio"],
+  .mode-selector input[type="checkbox"]{
     width:auto;
     margin:0;
     cursor:pointer;
@@ -428,13 +431,20 @@
 
   <header class="top">
     <h1>Levantado de Inventario</h1>
-    <span class="tag">Formato texto · envío por correo</span>
+    <span class="tag">Formato texto para guarrdar en shett o enviar por correo.</span>
   </header>
 
-  <!-- Selector de Opción / Modo -->
+  <!-- Selector de Opción / Modo y Criterio de Unitarios -->
   <div class="mode-selector">
-    <label><input type="radio" name="modoInv" value="1" checked onchange="cambiarModo('1')"> Opción 1: Marbete en cabecera</label>
-    <label><input type="radio" name="modoInv" value="2" onchange="cambiarModo('2')"> Opción 2: Marbete en detalle</label>
+    <div style="display:flex; gap:20px; flex-wrap:wrap;">
+      <label><input type="radio" name="modoInv" value="1" checked onchange="cambiarModo('1')"> Opción 1: Marbete en cabecera</label>
+      <label><input type="radio" name="modoInv" value="2" onchange="cambiarModo('2')"> Opción 2: Marbete en detalle</label>
+    </div>
+    <div>
+      <label style="color:var(--focus); font-weight:700; display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="checkUnitarios" onchange="guardarBorrador()"> Criterio Unitarios (Cant. = 1)
+      </label>
+    </div>
   </div>
 
   <form id="mainForm">
@@ -601,7 +611,6 @@ const DESTINATARIOS = [
 ];
 document.getElementById('recipientLabel').textContent = DESTINATARIOS.join(', ');
 
-// Reemplaza esto con la URL de你的 Web App de Apps Script (Implementar > Nueva implementación > Aplicación web)
 const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyqZ02CU8u7U3E9rKhiNcSEZYQRNmDge0n5ET0UEBBRp_RbplKWlwwWdZufembphe_T/exec';
 
 let modoActual = '1';
@@ -735,6 +744,7 @@ function guardarBorrador(){
     });
     const datos = {
       modo: modoActual,
+      unitarios: document.getElementById('checkUnitarios').checked,
       fecha: document.getElementById('fecha').value,
       codAsociado: document.getElementById('codAsociado').value,
       nombreAsociado: document.getElementById('nombreAsociado').value,
@@ -762,6 +772,9 @@ function restaurarBorrador(){
   if(datos.modo){
     modoActual = datos.modo;
     document.querySelector(`input[name="modoInv"][value="${datos.modo}"]`).checked = true;
+  }
+  if(datos.unitarios !== undefined){
+    document.getElementById('checkUnitarios').checked = datos.unitarios;
   }
   actualizarInterfazModo();
 
@@ -939,8 +952,21 @@ function wireRow(tr){
   codInput.addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){
       e.preventDefault();
-      cantInput.focus();
-      cantInput.select();
+      if(document.getElementById('checkUnitarios').checked){
+        cantInput.value = '1';
+        guardarBorrador();
+        const lastRow = document.getElementById('detalleBody').lastElementChild;
+        const trNode = codInput.closest('tr');
+        if(trNode === lastRow && codInput.value.trim() !== ''){
+          addRow('codigo');
+        } else {
+          const nextRow = trNode.nextElementSibling;
+          if(nextRow) nextRow.querySelector('.det-codigo').focus();
+        }
+      } else {
+        cantInput.focus();
+        cantInput.select();
+      }
     }
   });
 
@@ -949,7 +975,7 @@ function wireRow(tr){
       e.preventDefault();
       const lastRow = document.getElementById('detalleBody').lastElementChild;
       if(tr === lastRow && cantInput.value.trim() !== ''){
-        addRow(true);
+        addRow('ubicacion');
       } else {
         const nextRow = tr.nextElementSibling;
         if(nextRow) nextRow.querySelector('.det-ubicacion').focus();
@@ -958,7 +984,7 @@ function wireRow(tr){
   });
 }
 
-function addRow(focusNew){
+function addRow(focusField = 'ubicacion'){
   const tbody = document.getElementById('detalleBody');
   const tr = crearFilaHTML();
   tbody.appendChild(tr);
@@ -968,7 +994,9 @@ function addRow(focusNew){
   if(marbInput) marbInput.value = ultimoMarbete;
 
   wireRow(tr);
-  if(focusNew){
+  if(focusField === 'codigo'){
+    tr.querySelector('.det-codigo').focus();
+  } else {
     tr.querySelector('.det-ubicacion').focus();
   }
 }
@@ -1038,10 +1066,21 @@ async function abrirEscaner(){
           const isNumDoc = (campoActivoCodigo === numDocInput);
           const isUbi = campoActivoCodigo.classList && campoActivoCodigo.classList.contains('det-ubicacion');
           const isMarb = campoActivoCodigo.classList && campoActivoCodigo.classList.contains('det-marbete');
+          const esCodigo = campoActivoCodigo.classList && campoActivoCodigo.classList.contains('det-codigo');
           
           campoActivoCodigo.value = result.getText().toUpperCase();
           if(isUbi) ultimaUbicacion = campoActivoCodigo.value;
           if(isMarb) ultimoMarbete = campoActivoCodigo.value;
+
+          if(esCodigo && document.getElementById('checkUnitarios').checked){
+            const fila = campoActivoCodigo.closest('tr');
+            if(fila){
+              const cantInput = fila.querySelector('.det-cantidad');
+              if(cantInput){
+                cantInput.value = '1';
+              }
+            }
+          }
 
           cerrarEscaner();
 
@@ -1051,15 +1090,25 @@ async function abrirEscaner(){
           } else {
             const fila = campoActivoCodigo.closest ? campoActivoCodigo.closest('tr') : null;
             if(fila){
-              let siguienteCampo;
-              if(isUbi){
-                siguienteCampo = fila.querySelector('.det-marbete') || fila.querySelector('.det-codigo');
-              } else if(isMarb){
-                siguienteCampo = fila.querySelector('.det-codigo');
+              if(esCodigo && document.getElementById('checkUnitarios').checked){
+                const lastRow = document.getElementById('detalleBody').lastElementChild;
+                if(fila === lastRow){
+                  addRow('codigo');
+                } else {
+                  const nextRow = fila.nextElementSibling;
+                  if(nextRow) nextRow.querySelector('.det-codigo').focus();
+                }
               } else {
-                siguienteCampo = fila.querySelector('.det-cantidad');
+                let siguienteCampo;
+                if(isUbi){
+                  siguienteCampo = fila.querySelector('.det-marbete') || fila.querySelector('.det-codigo');
+                } else if(isMarb){
+                  siguienteCampo = fila.querySelector('.det-codigo');
+                } else {
+                  siguienteCampo = fila.querySelector('.det-cantidad');
+                }
+                if(siguienteCampo) siguienteCampo.focus();
               }
-              if(siguienteCampo) siguienteCampo.focus();
             }
           }
           guardarBorrador();
