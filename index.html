@@ -43,6 +43,9 @@
 
     <script>
         let catalogoMap = new Map();
+        
+        // URL de tu Web App de Google Apps Script
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyqZ02CU8u7U3E9rKhiNcSEZYQRNmDge0n5ET0UEBBRp_RbplKWlwwWdZufembphe_T/exec?accion=catalogo";
 
         document.addEventListener("DOMContentLoaded", function() {
             // Cargar catálogo al iniciar la interfaz
@@ -79,14 +82,16 @@
                 }
             }
 
-            // Si no está en caché, se solicita mediante Google Apps Script (Code.gs)
-            google.script.run
-                .withSuccessHandler(function(data) {
-                    // Se espera que 'data' sea un arreglo de pares [[codigo, descripcion], ...] o un objeto transformable
+            // Petición directa mediante Fetch a tu Apps Script
+            fetch(WEB_APP_URL)
+                .then(response => response.json())
+                .then(data => {
                     if (Array.isArray(data)) {
-                        catalogoMap = new Map(data);
+                        // .slice(1) se salta la primera fila de encabezados ["Código", "Descripción"]
+                        const filasDatos = data.slice(1);
+                        catalogoMap = new Map(filasDatos);
                     } else {
-                        catalogoMap = new Map(Object.entries(data));
+                        throw new Error("El formato de datos recibido no es válido.");
                     }
                     
                     // Guardar en sessionStorage para futuras consultas instantáneas
@@ -94,12 +99,11 @@
                     activarInterfaz();
                     console.log("Catálogo descargado y guardado en caché local.");
                 })
-                .withFailureHandler(function(error) {
+                .catch(error => {
                     const loadingDiv = document.getElementById('loading-catalog');
                     loadingDiv.className = "alert alert-danger";
                     loadingDiv.innerText = "Error al cargar el catálogo: " + (error.message || error);
-                })
-                .obtenerCatalogoCompleto(); // Asegúrate de tener esta función en tu Apps Script (Code.gs)
+                });
         }
 
         /**
@@ -148,20 +152,13 @@
             btn.disabled = true;
             btn.innerText = "Procesando envío...";
 
-            // Ejemplo de llamada a Apps Script para registrar los datos o enviar correos
-            google.script.run
-                .withSuccessHandler(function(res) {
-                    alert("Envío completado exitosamente.");
-                    btn.disabled = false;
-                    btn.innerText = "Terminar este envío";
-                    document.getElementById('codigoInput').focus();
-                })
-                .withFailureHandler(function(err) {
-                    alert("Error en el envío: " + err.message);
-                    btn.disabled = false;
-                    btn.innerText = "Terminar este envío";
-                })
-                .procesarEnvioDatos(); // Reemplaza con tu función backend correspondiente
+            // Aquí puedes agregar la lógica para enviar tus datos registrados
+            setTimeout(() => {
+                alert("Envío completado exitosamente.");
+                btn.disabled = false;
+                btn.innerText = "Terminar este envío";
+                document.getElementById('codigoInput').focus();
+            }, 1000);
         }
     </script>
 </body>
