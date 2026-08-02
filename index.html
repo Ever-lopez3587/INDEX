@@ -1167,12 +1167,8 @@ async function abrirEscaner(){
     const constraints = {
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        // En Android/Chrome esto activa enfoque y exposición continuos,
-        // que es la causa más común de "no lee" en celulares baratos
-        // (se quedan enfocados en infinito o en el último objeto).
-        advanced: [{ focusMode: 'continuous' }]
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       }
     };
 
@@ -1248,6 +1244,12 @@ async function abrirEscaner(){
 
     if(trackActual){
       const capacidades = trackActual.getCapabilities ? trackActual.getCapabilities() : {};
+
+      // El enfoque continuo se aplica AQUÍ (con la cámara ya corriendo) y
+      // no al pedir el stream, para que abrir la cámara siga siendo rápido.
+      if(capacidades.focusMode && capacidades.focusMode.includes('continuous')){
+        trackActual.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(()=>{});
+      }
 
       if(capacidades.torch){
         document.getElementById('btnTorch').style.display = 'inline-block';
