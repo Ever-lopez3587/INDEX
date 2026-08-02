@@ -1,1488 +1,168 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inventario WTW</title>
-<style>
-  :root{
-    --ink:#2b2f36;
-    --paper:#1c2128;
-    --panel:#fbf5f5;
-    --line:#ded7c8;
-    --accent:#b6904f;
-    --accent-dark:#8f6f38;
-    --grey-vacio:#9c9aa1;
-    --focus:#8f3838;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:linear-gradient(180deg,#363b41 0%,#262c35 100%);
-    font-family:'Courier New', ui-monospace, monospace;
-    color:var(--ink);
-    padding:24px 16px 60px;
-  }
-  .wrap{max-width:860px;margin:0 auto;}
-  header.top{
-    border-bottom:2px solid var(--accent);
-    padding-bottom:14px;
-    margin-bottom:18px;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-end;
-  }
-  header.top h1{
-    font-size:1.3rem;
-    letter-spacing:0.04em;
-    text-transform:uppercase;
-    margin:0;
-    color:#f2ede2;
-  }
-  header.top .tag{
-    font-size:0.72rem;
-    color:#9aa0ab;
-    letter-spacing:0.08em;
-  }
-  .mode-selector{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    flex-wrap:wrap;
-    gap:12px;
-    margin-bottom:18px;
-    background:var(--panel);
-    border:1px solid var(--line);
-    padding:12px 16px;
-    border-radius:2px;
-    font-size:0.75rem;
-    text-transform:uppercase;
-    letter-spacing:0.06em;
-    color:var(--accent-dark);
-  }
-  .mode-selector label{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    cursor:pointer;
-    color:var(--ink);
-    font-weight:600;
-    margin:0;
-  }
-  .mode-selector input[type="radio"],
-  .mode-selector input[type="checkbox"]{
-    width:auto;
-    margin:0;
-    cursor:pointer;
-  }
-  section{
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:2px;
-    padding:18px 20px;
-    margin-bottom:18px;
-  }
-  section h2{
-    font-size:0.75rem;
-    text-transform:uppercase;
-    letter-spacing:0.12em;
-    color:var(--accent-dark);
-    margin:0 0 14px;
-    border-bottom:1px solid var(--line);
-    padding-bottom:8px;
-  }
-  .grid2{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:14px;
-  }
-  label{
-    display:block;
-    font-size:0.7rem;
-    text-transform:uppercase;
-    letter-spacing:0.06em;
-    color:#6b7268;
-    margin-bottom:5px;
-  }
-  input{
-    width:100%;
-    padding:7px 8px;
-    border:1px solid var(--line);
-    border-radius:2px;
-    font-family:inherit;
-    font-size:0.78rem;
-    background:#fbfbfa;
-    color:var(--ink);
-  }
-  input:focus{
-    outline:2px solid var(--focus);
-    outline-offset:1px;
-    background:#fff;
-  }
-  .det-ubicacion,
-  .det-marbete,
-  .det-codigo,
-  #numDoc{
-    text-transform:uppercase;
-    letter-spacing:0.02em;
-  }
-  .det-codigo,
-  #numDoc{
-    font-weight:600;
-  }
-  .det-desc {
-    font-size: 0.65rem;
-    color: var(--accent-dark);
-    margin-top: 3px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    word-break: break-word;
-  }
-  .fecha-wrap{
-    position:relative;
-  }
-  .fecha-wrap input#fecha{
-    padding-right:34px;
-  }
-  .fecha-icon{
-    position:absolute;
-    right:9px;
-    top:50%;
-    transform:translateY(-50%);
-    pointer-events:none;
-    font-size:0.85rem;
-  }
-  .fecha-picker-overlay{
-    position:absolute;
-    right:0;
-    top:0;
-    width:34px;
-    height:100%;
-    opacity:0;
-    padding:0;
-    margin:0;
-    border:none;
-    background:transparent;
-    cursor:pointer;
-  }
-  table{
-    width:100%;
-    border-collapse:collapse;
-  }
-  th{
-    text-align:left;
-    font-size:0.68rem;
-    text-transform:uppercase;
-    letter-spacing:0.06em;
-    color:#6b7268;
-    padding:0 6px 8px;
-  }
-  td{padding:4px 6px 4px 0; vertical-align:top;}
-  td:last-child{padding-right:0;}
-  .row-del{
-    background:none;
-    border:1px solid var(--line);
-    color:#a33;
-    width:30px;
-    height:30px;
-    border-radius:2px;
-    cursor:pointer;
-    font-size:0.85rem;
-    line-height:1;
-  }
-  .row-del:hover{background:#f6e6e2;}
-  .add-row{
-    margin-top:10px;
-    background:none;
-    border:1px dashed var(--line);
-    color:var(--accent-dark);
-    padding:8px 12px;
-    border-radius:2px;
-    cursor:pointer;
-    font-size:0.8rem;
-    letter-spacing:0.04em;
-    width:100%;
-  }
-  .add-row:hover{border-color:var(--accent);background:#faf1ea;}
-  .send-bar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:14px;
-    margin-top:24px;
-  }
-  .recipient{
-    font-size:0.72rem;
-    color:#9aa0ab;
-  }
-  .recipient b{color:#f2ede2;}
-  .send-btn{
-    background:var(--accent-dark);
-    color:#fff;
-    border:none;
-    padding:13px 26px;
-    font-family:inherit;
-    font-size:0.82rem;
-    text-transform:uppercase;
-    letter-spacing:0.08em;
-    border-radius:2px;
-    cursor:pointer;
-    white-space:nowrap;
-  }
-  .send-btn:hover{background:var(--accent);}
-  #btnGuardarSheet:hover{background:#4a9a72 !important;}
-  .note{
-    font-size:0.68rem;
-    color:#8b9188;
-    margin-top:8px;
-    line-height:1.5;
-  }
-  .scan-btn{
-    background:#2e3542;
-    color:#f2ede2;
-    border:1px solid var(--accent);
-    padding:10px 14px;
-    font-family:inherit;
-    font-size:0.78rem;
-    letter-spacing:0.04em;
-    border-radius:2px;
-    cursor:pointer;
-    width:100%;
-    margin-top:12px;
-  }
-  .scan-btn:hover{background:var(--accent-dark);}
-  .scan-overlay{
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(15,17,20,0.94);
-    z-index:1000;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    padding:20px;
-  }
-  .scan-overlay.active{display:flex;}
-  .scan-box{
-    position:relative;
-    width:100%;
-    max-width:420px;
-    aspect-ratio:4/3;
-    background:#000;
-    border-radius:4px;
-    overflow:hidden;
-    border:1px solid var(--accent);
-  }
-  .scan-box video{
-    width:100%;
-    height:100%;
-    object-fit:cover;
-  }
-  .scan-frame{
-    position:absolute;
-    top:30%;
-    left:10%;
-    right:10%;
-    bottom:30%;
-    border:2px solid var(--accent);
-    border-radius:4px;
-    pointer-events:none;
-  }
-  .scan-status{
-    color:#e8e3d6;
-    font-size:0.78rem;
-    margin:16px 0;
-    text-align:center;
-    max-width:420px;
-  }
-  .scan-cancel{
-    background:none;
-    border:1px solid #4a5160;
-    color:#e8e3d6;
-    padding:10px 22px;
-    font-family:inherit;
-    font-size:0.78rem;
-    letter-spacing:0.06em;
-    border-radius:2px;
-    cursor:pointer;
-  }
-  .scan-cancel:hover{border-color:var(--accent);}
-
-  .send-overlay{
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(15,17,20,0.94);
-    z-index:1000;
-    align-items:center;
-    justify-content:center;
-    padding:16px;
-  }
-  .send-overlay.active{display:flex;}
-
-  .password-overlay{
-    display:flex;
-    position:fixed;
-    inset:0;
-    background:rgba(15,17,20,0.98);
-    z-index:2000;
-    align-items:center;
-    justify-content:center;
-    padding:16px;
-  }
-  .password-overlay.hidden{display:none;}
-
-  .send-box{
-    background:var(--panel);
-    border:1px solid var(--accent);
-    border-radius:4px;
-    padding:20px;
-    width:100%;
-    max-width:480px;
-    max-height:90vh;
-    overflow-y:auto;
-  }
-  .send-box h3{
-    margin:0 0 8px;
-    font-size:0.95rem;
-    text-transform:uppercase;
-    letter-spacing:0.05em;
-    color:var(--accent-dark);
-  }
-  .send-hint{
-    font-size:0.72rem;
-    color:#6b7268;
-    line-height:1.5;
-    margin:0 0 12px;
-  }
-  #sendText{
-    width:100%;
-    min-height:130px;
-    font-family:inherit;
-    font-size:0.78rem;
-    padding:10px;
-    border:1px solid var(--line);
-    border-radius:2px;
-    background:#f4f2ea;
-    color:var(--ink);
-    resize:vertical;
-    margin-bottom:12px;
-  }
-  .send-actions{
-    display:flex;
-    gap:8px;
-    margin-bottom:10px;
-  }
-  .send-action{
-    flex:1;
-    background:#2e3542;
-    color:#f2ede2;
-    border:1px solid var(--line);
-    padding:10px 8px;
-    font-family:inherit;
-    font-size:0.72rem;
-    border-radius:2px;
-    cursor:pointer;
-  }
-  .send-action:hover{border-color:var(--accent);}
-  .send-mail-btn{
-    width:100%;
-    background:var(--accent-dark);
-    color:#fff;
-    border:none;
-    padding:12px;
-    font-family:inherit;
-    font-size:0.8rem;
-    text-transform:uppercase;
-    letter-spacing:0.05em;
-    border-radius:2px;
-    cursor:pointer;
-    margin-bottom:8px;
-  }
-  .send-mail-btn:hover{background:var(--accent);}
-  .send-confirm-btn{
-    width:100%;
-    background:none;
-    border:1px solid var(--line);
-    color:#6b7268;
-    padding:10px;
-    font-family:inherit;
-    font-size:0.72rem;
-    border-radius:2px;
-    cursor:pointer;
-  }
-  .send-confirm-btn:hover{border-color:var(--accent-dark);color:var(--accent-dark);}
-  @media (max-width:520px){
-    .grid2{grid-template-columns:1fr;}
-    .send-bar{flex-direction:column;align-items:stretch;}
-    .send-btn{width:100%;}
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Inventario y Escaneo - WTW</title>
+    <!-- Bootstrap CSS para un diseño limpio y responsivo -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; padding: 20px; }
+        .container { max-width: 800px; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .scan-box { font-size: 1.2rem; }
+    </style>
 </head>
 <body>
-
-<!-- Modal de Contraseña de Acceso -->
-<div id="passwordOverlay" class="password-overlay">
-  <div class="send-box" style="max-width:380px; text-align:center;">
-    <h3>Acceso Protegido</h3>
-    <p class="send-hint">Ingresa la contraseña para acceder al formato de inventario.</p>
-    <div style="position:relative; margin-bottom:12px;">
-      <input type="password" id="inputPassword" placeholder="Contraseña..." style="text-align:center; font-size:1rem; letter-spacing:0.1em; padding-right:40px;">
-      <button type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.1rem; padding:4px; line-height:1;" title="Ver/Ocultar contraseña">👁️</button>
-    </div>
-    <button type="button" class="send-mail-btn" onclick="verificarPassword()">Ingresar</button>
-    <p id="errorPassword" class="note" style="color:#a33; margin-top:8px; display:none;">Contraseña incorrecta.</p>
-  </div>
-</div>
-
-<div class="wrap">
-
-  <header class="top">
-    <h1>Levantado de Inventario</h1>
-    <span class="tag">Formato texto. para Sheet y Correo.</span>
-  </header>
-
-  <!-- Selector de Opción / Modo y Criterio de Unitarios -->
-  <div class="mode-selector">
-    <div style="display:flex; gap:20px; flex-wrap:wrap;">
-      <label><input type="radio" name="modoInv" value="1" checked onchange="cambiarModo('1')"> Opción 1: Marbete en cabecera</label>
-      <label><input type="radio" name="modoInv" value="2" onchange="cambiarModo('2')"> Opción 2: Marbete en detalle</label>
-    </div>
-    <div>
-      <label style="color:var(--focus); font-weight:700; display:flex; align-items:center; gap:6px; cursor:pointer;">
-        <input type="checkbox" id="checkUnitarios" onchange="guardarBorrador()"> Criterio Unitarios (Cant. = 1)
-      </label>
-    </div>
-  </div>
-
-  <form id="mainForm">
-
-    <section>
-      <h2>Actualizar los siguiente datos</h2>
-      <div class="grid2">
-        <div>
-          <label for="fecha">Fecha</label>
-          <div class="fecha-wrap">
-            <input type="text" id="fecha" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" required>
-            <input type="date" id="fechaPicker" class="fecha-picker-overlay" tabindex="-1" aria-label="Elegir fecha en calendario">
-            <span class="fecha-icon">📅</span>
-          </div>
-        </div>
-        <div>
-          <label for="codAsociado">Código asociado</label>
-          <input type="text" id="codAsociado" placeholder="De Avon" required>
-        </div>
-        <div>
-          <label for="nombreAsociado">Nombre asociado</label>
-          <input type="text" id="nombreAsociado" placeholder="Un Nombre y Un Apellido" required>
-        </div>
-        <div>
-          <label for="zona">Zona</label>
-          <input type="text" id="zona" placeholder="Ej. CVZ4" required>
-        </div>
-        <div id="campoNumDocWrap">
-          <label for="numDoc">Número de Marbete (Escaneable / Digitable)</label>
-          <input type="text" id="numDoc" placeholder="Escanear o digitar">
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2>Detalle</h2>
-      <table>
-        <thead id="detalleHead">
-          <!-- Anchos optimizados -->
-        </thead>
-        <tbody id="detalleBody">
-          <!-- Filas dinámicas -->
-        </tbody>
-      </table>
-      
-      <button type="button" class="scan-btn" onclick="abrirEscaner()">📷 Escanear con cámara</button>
-      <button type="button" class="add-row" onclick="addRow()">+ Agregar línea</button>
-
-      <!-- Contador reubicado abajo -->
-      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-dark); font-weight: bold;">
-        <span>Total líneas Scaneadas:</span>
-        <span id="contadorLineas" style="color:var(--focus); font-size:0.95rem; font-weight:bold;">0</span>
-      </div>
-
-      <p class="note" id="notaAyuda" style="margin-top:14px;"></p>
-    </section>
-
-    <div class="send-bar">
-      <div class="recipient">Destinatario(s) fijo(s):<br><b id="recipientLabel"></b></div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <button type="button" class="send-btn" id="btnGuardarSheet" style="background:#3a7d5c;" onclick="guardarEnSheetClick()">💾 Guardar en Sheet</button>
-        <button type="button" class="send-btn" onclick="enviarCorreo()">Enviar por correo</button>
-      </div>
-    </div>
-    <p class="note" id="sheetStatus" style="margin-top:8px;"></p>
-
-    <!-- Texto requerido debajo del botón enviar por correo -->
-    <p class="note" style="margin-top:14px; line-height: 1.6;">
-      Código ampliado para ver 13+ dígitos sin apretarse. Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea. Ubicación se repite igual que la línea anterior.<br>
-      Para escanear Ubicación o Marbete: toca el campo primero (para que quede activo) y luego usa el lector físico o el botón de cámara.
-    </p>
-
-  </form>
-</div>
-
-<div id="scanOverlay" class="scan-overlay">
-  <div class="scan-box">
-    <video id="scanVideo" autoplay playsinline muted></video>
-    <div class="scan-frame"></div>
-  </div>
-  <p id="scanStatus" class="scan-status">Apunta la cámara al código de barras…</p>
-  <button type="button" class="scan-cancel" onclick="cerrarEscaner()">Cancelar</button>
-</div>
-
-<div id="sendOverlay" class="send-overlay">
-  <div class="send-box">
-    <h3>Revisa antes de enviar</h3>
-    <p class="send-hint">Guarda esta información con "Copiar" o "Descargar" ANTES de intentar el correo, por si tu app de correo no abre. Así no se pierde nada.</p>
-    
-    <!-- Campo para comentario adicional -->
-    <div style="margin-bottom:10px;">
-      <label for="comentarioExtra">Comentario adicional (Opcional):</label>
-      <input type="text" id="comentarioExtra" placeholder="Escribe observaciones o notas adicionales..." oninput="actualizarTextoEnvio()">
-    </div>
-
-    <textarea id="sendText" readonly></textarea>
-    <div class="send-actions">
-      <button type="button" id="btnCopiar" class="send-action" onclick="copiarTexto()">📋 Copiar texto</button>
-      <button type="button" class="send-action" onclick="descargarRespaldo()">⬇ Descargar respaldo</button>
-    </div>
-    <button type="button" class="send-mail-btn" onclick="abrirAppCorreo()">✉ Abrir app de correo</button>
-    
-    <div style="display:flex; gap:8px;">
-      <button type="button" class="send-confirm-btn" onclick="cerrarModalEnvio()" style="flex:1;">❌ Cancelar</button>
-      <button type="button" class="send-confirm-btn" onclick="confirmarYLimpiar()" style="flex:1;">✔ Limpiar formulario</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal personalizado para Alertas -->
-<div id="confirmOverlay" class="send-overlay">
-  <div class="send-box" style="max-width:400px;">
-    <h3 id="confirmTitle" style="color:var(--accent-dark);">Alerta!!!</h3>
-    <p id="confirmText" class="send-hint" style="font-size:0.78rem; color:var(--ink); margin-bottom:16px;"></p>
-    <div style="display:flex; gap:10px;">
-      <button type="button" class="send-action" onclick="resolverConfirmacion(false)" style="background:#2e3542; color:#f2ede2;">Cancelar</button>
-      <button type="button" class="send-mail-btn" style="margin:0; flex:1;" onclick="resolverConfirmacion(true)">Aceptar</button>
-    </div>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
-<script>
-// =========================================================================
-// BÚSQUEDA DE PRODUCTO EN HOJA 'BD' DE GOOGLE SHEETS
-// =========================================================================
-const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyqZ02CU8u7U3E9rKhiNcSEZYQRNmDge0n5ET0UEBBRp_RbplKWlwwWdZufembphe_T/exec';
-
-async function buscarDescripcion(codigo) {
-  if (!codigo) return "-";
-  const codigoLim = codigo.trim().toUpperCase();
-  
-  if (SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0) {
-    return "URL de Sheet no configurada";
-  }
-
-  try {
-    const response = await fetch(`${SHEET_WEBAPP_URL}?accion=buscar&codigo=${encodeURIComponent(codigoLim)}`);
-    const data = await response.json();
-    return data.descripcion || "⚠️ CÓDIGO NO ENCONTRADO EN CATÁLOGO";
-  } catch (err) {
-    return "Error al consultar catálogo";
-  }
-}
-
-function actualizarContador() {
-  const filas = document.querySelectorAll('#detalleBody tr');
-  let total = 0;
-  filas.forEach(tr => {
-    const cod = tr.querySelector('.det-codigo').value.trim();
-    if(cod) total++;
-  });
-  const contadorEl = document.getElementById('contadorLineas');
-  if(contadorEl) contadorEl.textContent = total;
-}
-
-// CONTRASEÑA DE ACCESO
-const CONTRASENA_ACCESO = "WTW2026";
-
-function togglePasswordVisibility(){
-  const input = document.getElementById('inputPassword');
-  const btn = document.getElementById('togglePasswordBtn');
-  if(input.type === 'password'){
-    input.type = 'text';
-    btn.textContent = '🙈';
-  } else {
-    input.type = 'password';
-    btn.textContent = '👁️';
-  }
-}
-
-function verificarPassword(){
-  const input = document.getElementById('inputPassword').value;
-  const errorEl = document.getElementById('errorPassword');
-  if(input === CONTRASENA_ACCESO){
-    sessionStorage.setItem('wtw_autenticado', 'true');
-    document.getElementById('passwordOverlay').classList.add('hidden');
-    document.getElementById('codAsociado').focus();
-  } else {
-    errorEl.style.display = 'block';
-    document.getElementById('inputPassword').value = '';
-    document.getElementById('inputPassword').focus();
-  }
-}
-
-document.getElementById('inputPassword').addEventListener('keydown', (e) => {
-  if(e.key === 'Enter'){
-    e.preventDefault();
-    verificarPassword();
-  }
-});
-
-window.addEventListener('DOMContentLoaded', () => {
-  if(sessionStorage.getItem('wtw_autenticado') === 'true'){
-    document.getElementById('passwordOverlay').classList.add('hidden');
-  } else {
-    document.getElementById('inputPassword').focus();
-  }
-});
-
-const DESTINATARIOS = [
-  "abidai.lopez@grupopdc.com","williams.oxlaj@grupopdc.com"
-];
-document.getElementById('recipientLabel').textContent = DESTINATARIOS.join(', ');
-
-let modoActual = '1';
-let campoActivoCodigo = null;
-let ultimaUbicacion = '';
-let ultimoMarbete = '';
-let callbackConfirmacion = null;
-let datosEnvioActual = { asunto: '', detalleLineas: [], modo: '1' };
-
-const CLAVE_BORRADOR = 'inventario_wtw_borrador_multimodo_v3';
-
-const numDocInput = document.getElementById('numDoc');
-numDocInput.addEventListener('focus', () => { campoActivoCodigo = numDocInput; });
-numDocInput.addEventListener('input', () => {
-  const cursor = numDocInput.selectionStart;
-  numDocInput.value = numDocInput.value.toUpperCase();
-  numDocInput.setSelectionRange(cursor, cursor);
-  guardarBorrador();
-});
-numDocInput.addEventListener('keydown', (e) => {
-  if(e.key === 'Enter'){
-    e.preventDefault();
-    const primerUbi = document.querySelector('#detalleBody tr .det-ubicacion');
-    if(primerUbi) primerUbi.focus();
-  }
-});
-
-function actualizarInterfazModo(){
-  const wrapNumDoc = document.getElementById('campoNumDocWrap');
-  const thead = document.getElementById('detalleHead');
-  const nota = document.getElementById('notaAyuda');
-
-  if(modoActual === '1'){
-    wrapNumDoc.style.display = 'block';
-    numDocInput.setAttribute('required', 'required');
-    thead.innerHTML = `
-      <tr>
-        <th style="width:25%">Ubicación</th>
-        <th style="width:55%">Código (13+ dígitos) / Descripción</th>
-        <th style="width:12%">Cantidad</th>
-        <th style="width:8%"></th>
-      </tr>
-    `;
-    nota.textContent = 'Marbete en cabecera activo. Enter en Marbete pasa a Ubicación; Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea.';
-  } else {
-    wrapNumDoc.style.display = 'none';
-    numDocInput.removeAttribute('required');
-    numDocInput.value = '';
-    thead.innerHTML = `
-      <tr>
-        <th style="width:20%">Ubicación</th>
-        <th style="width:20%">Marbete</th>
-        <th style="width:48%">Código (13+ dígitos) / Descripción</th>
-        <th style="width:8%">Cant.</th>
-        <th style="width:4%"></th>
-      </tr>
-    `;
-    nota.textContent = 'Marbete en detalle activo. Enter avanza secuencialmente por cada campo de la línea.';
-  }
-}
-
-function mostrarModalAlerta(titulo, mensaje, onAceptar){
-  document.getElementById('confirmTitle').textContent = titulo;
-  document.getElementById('confirmText').textContent = mensaje;
-  callbackConfirmacion = onAceptar;
-  document.getElementById('confirmOverlay').classList.add('active');
-}
-
-function resolverConfirmacion(aceptar){
-  document.getElementById('confirmOverlay').classList.remove('active');
-  if(aceptar && typeof callbackConfirmacion === 'function'){
-    callbackConfirmacion();
-  }
-  callbackConfirmacion = null;
-}
-
-function cambiarModo(nuevoModo){
-  if(nuevoModo === modoActual) return;
-
-  const hayDatosDetalle = Array.from(document.querySelectorAll('#detalleBody tr')).some(tr => {
-    const cod = tr.querySelector('.det-codigo').value.trim();
-    const cant = tr.querySelector('.det-cantidad').value.trim();
-    const ubi = tr.querySelector('.det-ubicacion').value.trim();
-    const marbInput = tr.querySelector('.det-marbete');
-    const marb = marbInput ? marbInput.value.trim() : '';
-    return cod || cant || ubi || marb;
-  });
-
-  if(hayDatosDetalle){
-    document.querySelector(`input[name="modoInv"][value="${modoActual}"]`).checked = true;
-
-    mostrarModalAlerta(
-      'Alerta!!!',
-      'Cambiar de opción borrará las líneas de detalle que ya capturaste. ¿Deseas continuar?',
-      () => {
-        modoActual = nuevoModo;
-        document.querySelector(`input[name="modoInv"][value="${nuevoModo}"]`).checked = true;
-        actualizarInterfazModo();
+    <div class="container">
+        <h2 class="mb-4 text-center">Control de Inventario y Escaneo</h2>
         
-        const tbody = document.getElementById('detalleBody');
-        tbody.innerHTML = '';
-        addRow();
-        guardarBorrador();
-      }
-    );
-    return;
-  }
+        <!-- Alerta de estado de sincronización del catálogo -->
+        <div id="loading-catalog" class="alert alert-info" role="alert">
+            Cargando y sincronizando catálogo local... Por favor espere.
+        </div>
 
-  modoActual = nuevoModo;
-  document.querySelector(`input[name="modoInv"][value="${nuevoModo}"]`).checked = true;
-  actualizarInterfazModo();
-  
-  const tbody = document.getElementById('detalleBody');
-  tbody.innerHTML = '';
-  addRow();
-  guardarBorrador();
-}
+        <!-- Interfaz de escaneo -->
+        <div class="mb-3">
+            <label for="codigoInput" class="form-label">Código de Barras / Artículo:</label>
+            <input type="text" id="codigoInput" class="form-control form-control-lg scan-box" placeholder="Escanee o ingrese el código..." autofocus disabled>
+        </div>
 
-function guardarBorrador(){
-  try{
-    const filas = [];
-    document.querySelectorAll('#detalleBody tr').forEach(tr => {
-      const filaData = {
-        codigo: tr.querySelector('.det-codigo').value,
-        cantidad: tr.querySelector('.det-cantidad').value,
-        ubicacion: tr.querySelector('.det-ubicacion').value
-      };
-      const marbInput = tr.querySelector('.det-marbete');
-      if(marbInput) filaData.marbete = marbInput.value;
-      filas.push(filaData);
-    });
-    const datos = {
-      modo: modoActual,
-      unitarios: document.getElementById('checkUnitarios').checked,
-      fecha: document.getElementById('fecha').value,
-      codAsociado: document.getElementById('codAsociado').value,
-      nombreAsociado: document.getElementById('nombreAsociado').value,
-      zona: document.getElementById('zona').value,
-      numDoc: numDocInput.value,
-      filas
-    };
-    localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(datos));
-  }catch(err){}
-  
-  actualizarContador();
-}
+        <div class="mb-3">
+            <label for="descripcionInput" class="form-label">Descripción:</label>
+            <input type="text" id="descripcionInput" class="form-control" readonly placeholder="La descripción aparecerá aquí automáticamente">
+        </div>
 
-function borrarBorrador(){
-  try{ localStorage.removeItem(CLAVE_BORRADOR); }catch(err){}
-}
+        <div class="mb-3">
+            <label for="cantidadInput" class="form-label">Cantidad:</label>
+            <input type="number" id="cantidadInput" class="form-control" value="1" min="1">
+        </div>
 
-function restaurarBorrador(){
-  let datos = null;
-  try{
-    const guardado = localStorage.getItem(CLAVE_BORRADOR);
-    if(guardado) datos = JSON.parse(guardado);
-  }catch(err){ return; }
+        <!-- Botón de finalización y envío -->
+        <button id="btnTerminar" class="btn btn-success w-100 btn-lg mt-3" disabled>Terminar este envío</button>
+    </div>
 
-  if(!datos) return;
+    <script>
+        let catalogoMap = new Map();
 
-  if(datos.modo){
-    modoActual = datos.modo;
-    document.querySelector(`input[name="modoInv"][value="${datos.modo}"]`).checked = true;
-  }
-  if(datos.unitarios !== undefined){
-    document.getElementById('checkUnitarios').checked = datos.unitarios;
-  }
-  actualizarInterfazModo();
+        document.addEventListener("DOMContentLoaded", function() {
+            // Cargar catálogo al iniciar la interfaz
+            cargarCatalogoCompleto();
 
-  if(datos.fecha) {
-    document.getElementById('fecha').value = datos.fecha;
-    const partes = datos.fecha.split('/');
-    if(partes.length === 3){
-      document.getElementById('fechaPicker').value = `${partes[2]}-${partes[1]}-${partes[0]}`;
-    }
-  }
-  if(datos.codAsociado) document.getElementById('codAsociado').value = datos.codAsociado;
-  if(datos.nombreAsociado) document.getElementById('nombreAsociado').value = datos.nombreAsociado;
-  if(datos.zona) document.getElementById('zona').value = datos.zona;
-  if(datos.numDoc) numDocInput.value = datos.numDoc;
+            const codigoInput = document.getElementById('codigoInput');
+            codigoInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    processScan(codigoInput.value.trim());
+                }
+            });
 
-  if(datos.filas && datos.filas.length){
-    const tbody = document.getElementById('detalleBody');
-    tbody.innerHTML = '';
-    datos.filas.forEach(f => {
-      const tr = crearFilaHTML();
-      tbody.appendChild(tr);
-      const codInput = tr.querySelector('.det-codigo');
-      const codVal = f.codigo || '';
-      codInput.value = codVal;
-      tr.querySelector('.det-cantidad').value = f.cantidad || '';
-      tr.querySelector('.det-ubicacion').value = f.ubicacion || '';
-      
-      if(codVal){
-        tr.querySelector('.det-desc').textContent = "Buscando en BD...";
-        buscarDescripcion(codVal).then(desc => {
-          tr.querySelector('.det-desc').textContent = desc;
+            document.getElementById('btnTerminar').addEventListener('click', function() {
+                ejecutarEnvio();
+            });
         });
-      } else {
-        tr.querySelector('.det-desc').textContent = "Desc: -";
-      }
 
-      if(f.ubicacion) ultimaUbicacion = f.ubicacion;
-      if(f.marbete && tr.querySelector('.det-marbete')){
-        tr.querySelector('.det-marbete').value = f.marbete;
-        ultimoMarbete = f.marbete;
-      }
-      wireRow(tr);
-    });
-    campoActivoCodigo = tbody.querySelector('.det-codigo');
-  }
-
-  const aviso = document.createElement('p');
-  aviso.className = 'note';
-  aviso.style.color = 'var(--accent-dark)';
-  aviso.textContent = '⚠ Se recuperó información que quedó sin guardar de una sesión anterior. Revísala antes de continuar.';
-  document.querySelector('header.top').insertAdjacentElement('afterend', aviso);
-  actualizarContador();
-}
-
-function formatearFecha(valor){
-  let d = valor.replace(/\D/g,'').slice(0,8);
-  if(d.length >= 5) return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4,8)}`;
-  if(d.length >= 3) return `${d.slice(0,2)}/${d.slice(2,4)}`;
-  return d;
-}
-
-function fechaValida(str){
-  const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if(!m) return false;
-  const dia = parseInt(m[1],10), mes = parseInt(m[2],10), anio = parseInt(m[3],10);
-  if(mes < 1 || mes > 12) return false;
-  const diasMes = new Date(anio, mes, 0).getDate();
-  return dia >= 1 && dia <= diasMes;
-}
-
-const fechaInput = document.getElementById('fecha');
-fechaInput.addEventListener('input', (e) => {
-  e.target.value = formatearFecha(e.target.value);
-  guardarBorrador();
-});
-
-(function setFechaHoy(){
-  const hoy = new Date();
-  const dd = String(hoy.getDate()).padStart(2,'0');
-  const mm = String(hoy.getMonth()+1).padStart(2,'0');
-  const yyyy = hoy.getFullYear();
-  fechaInput.value = `${dd}/${mm}/${yyyy}`;
-  document.getElementById('fechaPicker').value = `${yyyy}-${mm}-${dd}`;
-})();
-
-document.getElementById('fechaPicker').addEventListener('change', (e) => {
-  const [yyyy, mm, dd] = e.target.value.split('-');
-  if(yyyy && mm && dd){
-    fechaInput.value = `${dd}/${mm}/${yyyy}`;
-    guardarBorrador();
-  }
-});
-
-['codAsociado','nombreAsociado'].forEach(id => {
-  document.getElementById(id).addEventListener('input', guardarBorrador);
-});
-
-const zonaInput = document.getElementById('zona');
-zonaInput.addEventListener('input', () => {
-  const cursor = zonaInput.selectionStart;
-  zonaInput.value = zonaInput.value.toUpperCase();
-  zonaInput.setSelectionRange(cursor, cursor);
-  guardarBorrador();
-});
-
-function crearFilaHTML(){
-  const tr = document.createElement('tr');
-  if(modoActual === '1'){
-    tr.innerHTML = `
-      <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
-      <td>
-        <input type="text" class="det-codigo" placeholder="Escanea o digita (13 díg.)">
-        <div class="det-desc">Desc: -</div>
-      </td>
-      <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
-      <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
-    `;
-  } else {
-    tr.innerHTML = `
-      <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
-      <td><input type="text" class="det-marbete" placeholder="Marbete"></td>
-      <td>
-        <input type="text" class="det-codigo" placeholder="Escanea o digita (13 díg.)">
-        <div class="det-desc">Desc: -</div>
-      </td>
-      <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
-      <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
-    `;
-  }
-  return tr;
-}
-
-function wireRow(tr){
-  const codInput = tr.querySelector('.det-codigo');
-  const cantInput = tr.querySelector('.det-cantidad');
-  const ubiInput = tr.querySelector('.det-ubicacion');
-  const marbInput = tr.querySelector('.det-marbete');
-  const descDiv = tr.querySelector('.det-desc');
-
-  codInput.addEventListener('focus', () => { campoActivoCodigo = codInput; });
-  ubiInput.addEventListener('focus', () => { campoActivoCodigo = ubiInput; });
-  if(marbInput) marbInput.addEventListener('focus', () => { campoActivoCodigo = marbInput; });
-
-  codInput.addEventListener('input', async () => {
-    const cursor = codInput.selectionStart;
-    codInput.value = codInput.value.toUpperCase();
-    codInput.setSelectionRange(cursor, cursor);
-    
-    descDiv.textContent = "Buscando en BD...";
-    const desc = await buscarDescripcion(codInput.value);
-    descDiv.textContent = desc;
-
-    guardarBorrador();
-  });
-
-  cantInput.addEventListener('input', guardarBorrador);
-
-  ubiInput.addEventListener('input', () => {
-    const cursor = ubiInput.selectionStart;
-    ubiInput.value = ubiInput.value.toUpperCase();
-    ubiInput.setSelectionRange(cursor, cursor);
-    ultimaUbicacion = ubiInput.value;
-    guardarBorrador();
-  });
-
-  if(marbInput){
-    marbInput.addEventListener('input', () => {
-      const cursor = marbInput.selectionStart;
-      marbInput.value = marbInput.value.toUpperCase();
-      marbInput.setSelectionRange(cursor, cursor);
-      ultimoMarbete = marbInput.value;
-      guardarBorrador();
-    });
-
-    ubiInput.addEventListener('keydown', (e) => {
-      if(e.key === 'Enter'){
-        e.preventDefault();
-        marbInput.focus();
-        marbInput.select();
-      }
-    });
-
-    marbInput.addEventListener('keydown', (e) => {
-      if(e.key === 'Enter'){
-        e.preventDefault();
-        codInput.focus();
-        codInput.select();
-      }
-    });
-  } else {
-    ubiInput.addEventListener('keydown', (e) => {
-      if(e.key === 'Enter'){
-        e.preventDefault();
-        codInput.focus();
-        codInput.select();
-      }
-    });
-  }
-
-  codInput.addEventListener('keydown', (e) => {
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      if(document.getElementById('checkUnitarios').checked){
-        cantInput.value = '1';
-        guardarBorrador();
-        const lastRow = document.getElementById('detalleBody').lastElementChild;
-        const trNode = codInput.closest('tr');
-        if(trNode === lastRow && codInput.value.trim() !== ''){
-          addRow('codigo');
-        } else {
-          const nextRow = trNode.nextElementSibling;
-          if(nextRow) nextRow.querySelector('.det-codigo').focus();
-        }
-      } else {
-        cantInput.focus();
-        cantInput.select();
-      }
-    }
-  });
-
-  cantInput.addEventListener('keydown', (e) => {
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      const lastRow = document.getElementById('detalleBody').lastElementChild;
-      if(tr === lastRow && cantInput.value.trim() !== ''){
-        addRow('ubicacion');
-      } else {
-        const nextRow = tr.nextElementSibling;
-        if(nextRow) nextRow.querySelector('.det-ubicacion').focus();
-      }
-    }
-  });
-}
-
-function addRow(focusField = 'ubicacion'){
-  const tbody = document.getElementById('detalleBody');
-  const tr = crearFilaHTML();
-  tbody.appendChild(tr);
-  
-  tr.querySelector('.det-ubicacion').value = ultimaUbicacion;
-  const marbInput = tr.querySelector('.det-marbete');
-  if(marbInput) marbInput.value = ultimoMarbete;
-
-  wireRow(tr);
-  if(focusField === 'codigo'){
-    tr.querySelector('.det-codigo').focus();
-  } else {
-    tr.querySelector('.det-ubicacion').focus();
-  }
-  actualizarContador();
-}
-
-function removeRow(btn){
-  const tbody = document.getElementById('detalleBody');
-  if(tbody.rows.length > 1){
-    btn.closest('tr').remove();
-    guardarBorrador();
-    actualizarContador();
-  }
-}
-
-actualizarInterfazModo();
-const tbodyIni = document.getElementById('detalleBody');
-tbodyIni.innerHTML = '';
-addRow();
-restaurarBorrador();
-
-let zxingReader = null;
-
-async function abrirEscaner(){
-  const overlay = document.getElementById('scanOverlay');
-  const status = document.getElementById('scanStatus');
-  const video = document.getElementById('scanVideo');
-
-  const avisoExtra = document.getElementById('scanStatusExtra');
-  if(avisoExtra) avisoExtra.remove();
-
-  if(!window.ZXing){
-    alert('No se pudo cargar el componente de escaneo (revisa tu conexión e intenta de nuevo).');
-    return;
-  }
-
-  if(!campoActivoCodigo){
-    campoActivoCodigo = numDocInput;
-  }
-
-  overlay.classList.add('active');
-  status.textContent = 'Apunta la cámara al código de barras…';
-
-  try{
-    if(!zxingReader){
-      const hints = new Map();
-      const formats = [
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.ITF,
-        ZXing.BarcodeFormat.QR_CODE
-      ];
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-      zxingReader = new ZXing.BrowserMultiFormatReader(hints);
-    }
-    
-    const constraints = {
-      video: {
-        facingMode: 'environment'
-      }
-    };
-
-    await zxingReader.decodeFromConstraints(
-      constraints,
-      video,
-      async (result, err) => {
-        if(result){
-          const textResult = result.getText().toUpperCase();
-          const isNumDoc = (campoActivoCodigo === numDocInput);
-          const isUbi = campoActivoCodigo.classList && campoActivoCodigo.classList.contains('det-ubicacion');
-          const isMarb = campoActivoCodigo.classList && campoActivoCodigo.classList.contains('det-marbete');
-          const esCodigo = campoActivoCodigo.classList && campoActivoCodigo.classList.contains('det-codigo');
-          
-          campoActivoCodigo.value = textResult;
-          if(isUbi) ultimaUbicacion = campoActivoCodigo.value;
-          if(isMarb) ultimoMarbete = campoActivoCodigo.value;
-
-          if(esCodigo){
-            const fila = campoActivoCodigo.closest('tr');
-            if(fila){
-              fila.querySelector('.det-desc').textContent = "Buscando en BD...";
-              const descRes = await buscarDescripcion(campoActivoCodigo.value);
-              fila.querySelector('.det-desc').textContent = descRes;
-
-              if(document.getElementById('checkUnitarios').checked){
-                const cantInput = fila.querySelector('.det-cantidad');
-                if(cantInput){
-                  cantInput.value = '1';
+        /**
+         * Carga el catálogo completo utilizando sessionStorage para evitar consultas repetitivas al servidor.
+         */
+        function cargarCatalogoCompleto() {
+            const cachedData = sessionStorage.getItem('catalogo_inventario');
+            if (cachedData) {
+                try {
+                    const parsed = JSON.parse(cachedData);
+                    catalogoMap = new Map(parsed);
+                    activarInterfaz();
+                    console.log("Catálogo cargado exitosamente desde sessionStorage.");
+                    return;
+                } catch (e) {
+                    console.warn("Error al leer la caché, recargando desde el servidor...", e);
+                    sessionStorage.removeItem('catalogo_inventario');
                 }
-              }
             }
-          }
 
-          cerrarEscaner();
+            // Si no está en caché, se solicita mediante Google Apps Script (Code.gs)
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    // Se espera que 'data' sea un arreglo de pares [[codigo, descripcion], ...] o un objeto transformable
+                    if (Array.isArray(data)) {
+                        catalogoMap = new Map(data);
+                    } else {
+                        catalogoMap = new Map(Object.entries(data));
+                    }
+                    
+                    // Guardar en sessionStorage para futuras consultas instantáneas
+                    sessionStorage.setItem('catalogo_inventario', JSON.stringify(Array.from(catalogoMap.entries())));
+                    activarInterfaz();
+                    console.log("Catálogo descargado y guardado en caché local.");
+                })
+                .withFailureHandler(function(error) {
+                    const loadingDiv = document.getElementById('loading-catalog');
+                    loadingDiv.className = "alert alert-danger";
+                    loadingDiv.innerText = "Error al cargar el catálogo: " + (error.message || error);
+                })
+                .obtenerCatalogoCompleto(); // Asegúrate de tener esta función en tu Apps Script (Code.gs)
+        }
 
-          if(isNumDoc && modoActual === '1'){
-            const primerUbi = document.querySelector('#detalleBody tr .det-ubicacion');
-            if(primerUbi) primerUbi.focus();
-          } else {
-            const fila = campoActivoCodigo.closest ? campoActivoCodigo.closest('tr') : null;
-            if(fila){
-              if(esCodigo && document.getElementById('checkUnitarios').checked){
-                const lastRow = document.getElementById('detalleBody').lastElementChild;
-                if(fila === lastRow){
-                  addRow('codigo');
-                } else {
-                  const nextRow = fila.nextElementSibling;
-                  if(nextRow) nextRow.querySelector('.det-codigo').focus();
-                }
-              } else {
-                let siguienteCampo;
-                if(isUbi){
-                  siguienteCampo = fila.querySelector('.det-marbete') || fila.querySelector('.det-codigo');
-                } else if(isMarb){
-                  siguienteCampo = fila.querySelector('.det-codigo');
-                } else {
-                  siguienteCampo = fila.querySelector('.det-cantidad');
-                }
-                if(siguienteCampo) siguienteCampo.focus();
-              }
+        /**
+         * Habilita los campos de entrada una vez cargado el catálogo.
+         */
+        function activarInterfaz() {
+            const loadingDiv = document.getElementById('loading-catalog');
+            loadingDiv.className = "alert alert-success";
+            loadingDiv.innerText = "Catálogo listo y sincronizado.";
+            document.getElementById('codigoInput').disabled = false;
+            document.getElementById('btnTerminar').disabled = false;
+            document.getElementById('codigoInput').focus();
+        }
+
+        /**
+         * Búsqueda optimizada O(1) utilizando el Map local en memoria.
+         */
+        function buscarDescripcion(codigo) {
+            if (catalogoMap.has(codigo)) {
+                return catalogoMap.get(codigo);
             }
-          }
-          guardarBorrador();
+            return "Artículo no encontrado";
         }
-        if(err && !(err instanceof ZXing.NotFoundException)){
-          console.warn(err);
+
+        /**
+         * Procesa el código escaneado.
+         */
+        function processScan(codigo) {
+            if (!codigo) return;
+            const descripcion = buscarDescripcion(codigo);
+            document.getElementById('descripcionInput').value = descripcion;
+            
+            console.log(`Código escaneado: ${codigo} -> ${descripcion}`);
+            
+            // Limpiar y enfocar para el siguiente escaneo continuo
+            const codigoInput = document.getElementById('codigoInput');
+            codigoInput.value = '';
+            codigoInput.focus();
         }
-      }
-    );
-  }catch(err){
-    status.textContent = 'Sin acceso a la cámara o dispositivo no compatible.';
-    const status2 = document.createElement('p');
-    status2.id = 'scanStatusExtra';
-    status2.className = 'scan-status';
-    status2.style.marginTop = '4px';
-    status2.textContent = 'Este archivo debe abrirse desde un enlace https:// y permitir el uso de cámara.';
-    document.querySelector('.scan-overlay').appendChild(status2);
-  }
-}
 
-function cerrarEscaner(){
-  const overlay = document.getElementById('scanOverlay');
-  overlay.classList.remove('active');
-  if(zxingReader){
-    zxingReader.reset();
-  }
-}
+        /**
+         * Ejecuta el envío de datos o la transmisión de correo con el botón respectivo.
+         */
+        function ejecutarEnvio() {
+            const btn = document.getElementById('btnTerminar');
+            btn.disabled = true;
+            btn.innerText = "Procesando envío...";
 
-function recolectarDatosFormulario(){
-  const fecha = document.getElementById('fecha').value;
-  const codAsociado = document.getElementById('codAsociado').value.trim();
-  const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
-  const zona = document.getElementById('zona').value.trim();
-  const numDoc = numDocInput.value.trim();
-
-  if(!fecha || !codAsociado || !nombreAsociado || !zona){
-    alert('Completa todos los campos generales de la cabecera antes de guardar.');
-    return null;
-  }
-
-  if(modoActual === '1' && !numDoc){
-    alert('Completa el número de marbete.');
-    return null;
-  }
-
-  if(!fechaValida(fecha)){
-    alert('La fecha debe tener el formato dd/mm/aaaa, por ejemplo 17/07/2026.');
-    return null;
-  }
-
-  const codigos = document.querySelectorAll('.det-codigo');
-  const cantidades = document.querySelectorAll('.det-cantidad');
-  const ubicaciones = document.querySelectorAll('.det-ubicacion');
-  const marbetes = document.querySelectorAll('.det-marbete');
-
-  const filas = [];
-  for(let i=0; i<codigos.length; i++){
-    const cod = codigos[i].value.trim();
-    const cant = cantidades[i].value.trim();
-    const ubi = ubicaciones[i].value.trim();
-    const marb = marbetes[i] ? marbetes[i].value.trim() : '';
-
-    if(cod && cant){
-      if(modoActual === '2' && !marb){
-        alert(`Fila ${i+1}: Falta el número de marbete.`);
-        return null;
-      }
-      filas.push({
-        ubicacion: ubi,
-        marbete: modoActual === '2' ? marb : numDoc,
-        codigo: cod,
-        cantidad: cant
-      });
-    }
-  }
-
-  if(!filas.length){
-    alert('Agrega al menos una línea de detalle con código y cantidad válidos.');
-    return null;
-  }
-
-  return {
-    fecha, codAsociado, nombreAsociado, zona,
-    filas
-  };
-}
-
-async function guardarEnSheetClick(){
-  const statusEl = document.getElementById('sheetStatus');
-  const boton = document.getElementById('btnGuardarSheet');
-
-  if(SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0){
-    alert('Falta configurar la URL del Web App de Google Sheets en el código (SHEET_WEBAPP_URL).');
-    return;
-  }
-
-  const datos = recolectarDatosFormulario();
-  if(!datos) return;
-
-  boton.disabled = true;
-  statusEl.style.color = '#8b9188';
-  statusEl.textContent = 'Guardando en Google Sheet…';
-
-  try{
-    await fetch(SHEET_WEBAPP_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(datos)
-    });
-    statusEl.style.color = 'var(--accent-dark)';
-    statusEl.textContent = '✓ Enviado al Sheet (verifica en la hoja que la fila haya llegado).';
-    mostrarModalAlerta(
-      'Guardado enviado',
-      '¿Deseas limpiar el formulario para la siguiente captura?',
-      confirmarYLimpiar
-    );
-  }catch(err){
-    statusEl.style.color = '#a33';
-    statusEl.textContent = '⚠ No se pudo conectar con Google Sheet. Revisa tu conexión e intenta de nuevo.';
-  }finally{
-    boton.disabled = false;
-  }
-}
-
-function enviarCorreo(){
-  const fecha = document.getElementById('fecha').value;
-  const codAsociado = document.getElementById('codAsociado').value.trim();
-  const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
-  const zona = document.getElementById('zona').value.trim();
-  const numDoc = numDocInput.value.trim();
-
-  if(!fecha || !codAsociado || !nombreAsociado || !zona){
-    alert('Completa todos los campos generales de la cabecera antes de enviar.');
-    return;
-  }
-
-  if(modoActual === '1' && !numDoc){
-    alert('Completa el número de marbete.');
-    return;
-  }
-
-  if(!fechaValida(fecha)){
-    alert('La fecha debe tener el formato dd/mm/aaaa, por ejemplo 17/07/2026.');
-    return;
-  }
-
-  const codigos = document.querySelectorAll('.det-codigo');
-  const cantidades = document.querySelectorAll('.det-cantidad');
-  const ubicaciones = document.querySelectorAll('.det-ubicacion');
-  const marbetes = document.querySelectorAll('.det-marbete');
-
-  let detalleLineas = [];
-  let detalleValido = false;
-
-  for(let i=0; i<codigos.length; i++){
-    const cod = codigos[i].value.trim();
-    const cant = cantidades[i].value.trim();
-    const ubi = ubicaciones[i].value.trim();
-    const marb = marbetes[i] ? marbetes[i].value.trim() : '';
-
-    if(cod && cant){
-      if(modoActual === '2' && !marb){
-        alert(`Fila ${i+1}: Falta el número de marbete.`);
-        return;
-      }
-      detalleValido = true;
-      if(modoActual === '1'){
-        detalleLineas.push([fecha, codAsociado, nombreAsociado, zona, numDoc, ubi, cod, cant].join('|'));
-      } else {
-        detalleLineas.push([fecha, codAsociado, nombreAsociado, zona, marb, ubi, cod, cant].join('|'));
-      }
-    }
-  }
-
-  if(!detalleValido){
-    alert('Agrega al menos una línea de detalle con código y cantidad válidos.');
-    return;
-  }
-
-  let asunto;
-  if(modoActual === '1'){
-    asunto = `No. Marbete: ${numDoc} - ${zona} - ${nombreAsociado} - ${codAsociado} - ${fecha}`;
-  } else {
-    asunto = `Inventario Detalle Marbetes - ${zona} - ${nombreAsociado} - ${codAsociado} - ${fecha}`;
-  }
-
-  datosEnvioActual = { asunto, detalleLineas, modo: modoActual };
-  actualizarTextoEnvio();
-  document.getElementById('sendOverlay').classList.add('active');
-}
-
-function actualizarTextoEnvio(){
-  const comentario = document.getElementById('comentarioExtra').value.trim();
-  let encabezadoColumnas;
-  if(datosEnvioActual.modo === '1'){
-    encabezadoColumnas = ['FECHA','COD. ASOCIADO','NOMBRE ASOCIADO','ZONA','NUM. DOCUMENTO','UBICACION','CODIGO','CANTIDAD'].join('|');
-  } else {
-    encabezadoColumnas = ['FECHA','COD. ASOCIADO','NOMBRE ASOCIADO','ZONA','MARBETE','UBICACION','CODIGO','CANTIDAD'].join('|');
-  }
-
-  let cuerpo = `Detalle de inventario levantado:\n\n${encabezadoColumnas}\n${datosEnvioActual.detalleLineas.join('\n')}`;
-  
-  if(comentario){
-    cuerpo += `\n\nComentario adicional:\n${comentario}`;
-  }
-
-  cuerpo += `\n\n--\nGenerado automáticamente desde el formulario de registro.`;
-  document.getElementById('sendText').value = cuerpo;
-}
-
-function cerrarModalEnvio(){
-  document.getElementById('sendOverlay').classList.remove('active');
-}
-
-function abrirAppCorreo(){
-  const asunto = datosEnvioActual.asunto;
-  const cuerpo = document.getElementById('sendText').value;
-  const mailtoLink = `mailto:${DESTINATARIOS.join(',')}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
-  window.location.href = mailtoLink;
-}
-
-async function copiarTexto(){
-  const texto = document.getElementById('sendText').value;
-  const boton = document.getElementById('btnCopiar');
-  try{
-    await navigator.clipboard.writeText(texto);
-    boton.textContent = '✓ Copiado';
-  }catch(err){
-    document.getElementById('sendText').select();
-    document.execCommand('copy');
-    boton.textContent = '✓ Copiado';
-  }
-  setTimeout(() => { boton.textContent = '📋 Copiar texto'; }, 2000);
-}
-
-function descargarRespaldo(){
-  const texto = document.getElementById('sendText').value;
-  const numDoc = numDocInput.value.trim() || 'multimarbete';
-  const blob = new Blob([texto], {type:'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `inventario_wtw_${numDoc}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function confirmarYLimpiar(){
-  document.getElementById('sendOverlay').classList.remove('active');
-
-  numDocInput.value = '';
-  document.getElementById('comentarioExtra').value = '';
-  const tbody = document.getElementById('detalleBody');
-  tbody.innerHTML = '';
-  ultimaUbicacion = '';
-  ultimoMarbete = '';
-  addRow();
-  numDocInput.focus();
-
-  borrarBorrador();
-  guardarBorrador();
-}
-
-function hayDatosSinGuardar(){
-  const numDoc = numDocInput.value.trim();
-  const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
-  const codAsociado = document.getElementById('codAsociado').value.trim();
-  const zona = document.getElementById('zona').value.trim();
-
-  const codigos = document.querySelectorAll('.det-codigo');
-  const cantidades = document.querySelectorAll('.det-cantidad');
-  let detalleConDatos = false;
-  for(let i=0; i<codigos.length; i++){
-    if(codigos[i].value.trim() || cantidades[i].value.trim()){
-      detalleConDatos = true;
-      break;
-    }
-  }
-
-  return !!(numDoc || nombreAsociado || codAsociado || zona || detalleConDatos);
-}
-
-window.addEventListener('beforeunload', function(e){
-  if(hayDatosSinGuardar()){
-    e.preventDefault();
-    e.returnValue = '';
-  }
-});
-</script>
-
+            // Ejemplo de llamada a Apps Script para registrar los datos o enviar correos
+            google.script.run
+                .withSuccessHandler(function(res) {
+                    alert("Envío completado exitosamente.");
+                    btn.disabled = false;
+                    btn.innerText = "Terminar este envío";
+                    document.getElementById('codigoInput').focus();
+                })
+                .withFailureHandler(function(err) {
+                    alert("Error en el envío: " + err.message);
+                    btn.disabled = false;
+                    btn.innerText = "Terminar este envío";
+                })
+                .procesarEnvioDatos(); // Reemplaza con tu función backend correspondiente
+        }
+    </script>
 </body>
 </html>
