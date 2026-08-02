@@ -119,12 +119,24 @@
         }
 
         /**
-         * Búsqueda optimizada O(1) utilizando el Map local en memoria.
+         * Búsqueda flexible y robusta para evitar fallos por espacios o mayúsculas del escáner.
          */
         function buscarDescripcion(codigo) {
-            if (catalogoMap.has(codigo)) {
-                return catalogoMap.get(codigo);
+            if (!codigo) return "Artículo no encontrado";
+            var codigoLimpio = codigo.toString().trim();
+            
+            // Búsqueda exacta
+            if (catalogoMap.has(codigoLimpio)) {
+                return catalogoMap.get(codigoLimpio);
             }
+            
+            // Búsqueda flexible ignorando mayúsculas y espacios extra
+            for (let [key, value] of catalogoMap.entries()) {
+                if (key.toString().trim().toUpperCase() === codigoLimpio.toUpperCase()) {
+                    return value;
+                }
+            }
+            
             return "Artículo no encontrado";
         }
 
@@ -152,7 +164,6 @@
             btn.disabled = true;
             btn.innerText = "Procesando envío...";
 
-            // Aquí puedes agregar la lógica para enviar tus datos registrados
             setTimeout(() => {
                 alert("Envío completado exitosamente.");
                 btn.disabled = false;
