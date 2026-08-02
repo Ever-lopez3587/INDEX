@@ -534,6 +534,11 @@
     <div class="scan-frame"></div>
   </div>
   <p id="scanStatus" class="scan-status">Apunta la cámara al código de barras…</p>
+  <div class="scan-controls" style="display:flex; gap:10px; justify-content:center; margin-top:8px;">
+    <button type="button" id="btnTorch" class="scan-cancel" style="display:none;" onclick="toggleTorch()">💡 Linterna</button>
+    <button type="button" id="btnZoomOut" class="scan-cancel" style="display:none;" onclick="ajustarZoom(-1)">➖ Zoom</button>
+    <button type="button" id="btnZoomIn" class="scan-cancel" style="display:none;" onclick="ajustarZoom(1)">➕ Zoom</button>
+  </div>
   <button type="button" class="scan-cancel" onclick="cerrarEscaner()">Cancelar</button>
 </div>
 
@@ -580,24 +585,24 @@
 // BÚSQUEDA DE DESCRIPCIÓN (ahora consulta la hoja "BD" vía Apps Script,
 // en lugar de tener el catálogo pegado aquí en el HTML)
 // =========================================================================
- 
+
 // Caché en memoria: una vez que se busca un código en la sesión, no se
 // vuelve a pedir al servidor (evita golpear la hoja BD repetidamente).
 const cacheDescripciones = {};
- 
+
 // Usa la MISMA SHEET_WEBAPP_URL (declarada más abajo en este archivo) —
 // el mismo Apps Script tiene doGet (buscar) y doPost (guardar).
 // Nota: se referencia SHEET_WEBAPP_URL solo DENTRO de la función, para
 // que ya esté declarada cuando el usuario empiece a escribir un código.
- 
+
 async function obtenerDescripcionRemota(codigo) {
   const codigoLim = codigo.trim().toUpperCase();
   if (!codigoLim) return "-";
- 
+
   if (cacheDescripciones.hasOwnProperty(codigoLim)) {
     return cacheDescripciones[codigoLim];
   }
- 
+
   try {
     const resp = await fetch(`${SHEET_WEBAPP_URL}?codigo=${encodeURIComponent(codigoLim)}`);
     const data = await resp.json();
@@ -608,7 +613,7 @@ async function obtenerDescripcionRemota(codigo) {
     return "⚠️ Sin conexión para buscar descripción";
   }
 }
- 
+
 function actualizarContador() {
   const filas = document.querySelectorAll('#detalleBody tr');
   let total = 0;
@@ -1115,6 +1120,10 @@ addRow();
 restaurarBorrador();
 
 let zxingReader = null;
+let trackActual = null;
+let torchActivo = false;
+let zoomActual = 1;
+let zoomPaso = 1;
 
 async function abrirEscaner(){
   const overlay = document.getElementById('scanOverlay');
@@ -1143,17 +1152,27 @@ async function abrirEscaner(){
       ZXing.BarcodeFormat.CODE_128,
       ZXing.BarcodeFormat.EAN_8,
       ZXing.BarcodeFormat.UPC_A,
-      ZXing.BarcodeFormat.CODE_39
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.ITF
     ];
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    // TRY_HARDER: hace que ZXing invierta más esfuerzo por frame en decodificar
+    // (más lento por intento, pero bastante más certero con códigos borrosos,
+    // pequeños o mal iluminados — que es justo el caso de cámaras que cuestan).
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
     zxingReader = new ZXing.BrowserMultiFormatReader(hints);
     
     const constraints = {
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        // En Android/Chrome esto activa enfoque y exposición continuos,
+        // que es la causa más común de "no lee" en celulares baratos
+        // (se quedan enfocados en infinito o en el último objeto).
+        advanced: [{ focusMode: 'continuous' }]
       }
     };
 
@@ -1220,6 +1239,26 @@ async function abrirEscaner(){
         }
       }
     );
+
+    // Una vez que el stream ya está corriendo, revisamos qué controles
+    // soporta ESTE dispositivo/cámara en particular (varía mucho entre
+    // celulares) y mostramos los botones solo si están disponibles.
+    trackActual = video.srcObject && video.srcObject.getVideoTracks
+      ? video.srcObject.getVideoTracks()[0] : null;
+
+    if(trackActual){
+      const capacidades = trackActual.getCapabilities ? trackActual.getCapabilities() : {};
+
+      if(capacidades.torch){
+        document.getElementById('btnTorch').style.display = 'inline-block';
+      }
+      if(capacidades.zoom){
+        zoomActual = capacidades.zoomMin ?? capacidades.zoom.min ?? 1;
+        zoomPaso = ((capacidades.zoomMax ?? capacidades.zoom.max ?? 2) - zoomActual) / 4 || 1;
+        document.getElementById('btnZoomOut').style.display = 'inline-block';
+        document.getElementById('btnZoomIn').style.display = 'inline-block';
+      }
+    }
   }catch(err){
     status.textContent = 'Sin acceso a la cámara. Revisa que el navegador tenga permiso de cámara habilitado para esta página.';
     const status2 = document.createElement('p');
@@ -1237,6 +1276,32 @@ function cerrarEscaner(){
   if(zxingReader){
     zxingReader.reset();
     zxingReader = null;
+  }
+  trackActual = null;
+  torchActivo = false;
+  document.getElementById('btnTorch').style.display = 'none';
+  document.getElementById('btnZoomOut').style.display = 'none';
+  document.getElementById('btnZoomIn').style.display = 'none';
+}
+
+async function toggleTorch(){
+  if(!trackActual) return;
+  try{
+    torchActivo = !torchActivo;
+    await trackActual.applyConstraints({ advanced: [{ torch: torchActivo }] });
+  }catch(err){
+    alert('Este celular no permite controlar la linterna desde el navegador.');
+    torchActivo = false;
+  }
+}
+
+async function ajustarZoom(direccion){
+  if(!trackActual) return;
+  try{
+    zoomActual = Math.max(1, zoomActual + (direccion * zoomPaso));
+    await trackActual.applyConstraints({ advanced: [{ zoom: zoomActual }] });
+  }catch(err){
+    // Si el dispositivo rechaza el valor, simplemente no hace nada.
   }
 }
 
