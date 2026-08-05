@@ -513,7 +513,7 @@
     <div class="send-bar">
       <div class="recipient">Destinatario(s) fijo(s):<br><b id="recipientLabel"></b></div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <button type="button" class="send-btn" id="btnGuardarSheet" style="background:#3a7d5c;" onclick="guardarEnSheetClick()">💾 Guardar en Sheet</button>
+        <button type="button" class="send-btn" id="btnGuardarSheet" style="background:#3a7d5c;" onclick="reintentarTodasPendientes()">🔄 Reintentar guardado</button>
         <button type="button" class="send-btn" onclick="enviarCorreo()">Enviar por correo</button>
       </div>
     </div>
@@ -722,9 +722,10 @@ function actualizarInterfazModo(){
     numDocInput.setAttribute('required', 'required');
     thead.innerHTML = `
       <tr>
-        <th style="width:25%">Ubicación</th>
-        <th style="width:55%">Código (13+ dígitos) / Descripción</th>
+        <th style="width:22%">Ubicación</th>
+        <th style="width:48%">Código (13+ dígitos) / Descripción</th>
         <th style="width:12%">Cantidad</th>
+        <th style="width:10%">Sheet</th>
         <th style="width:8%"></th>
       </tr>
     `;
@@ -735,10 +736,11 @@ function actualizarInterfazModo(){
     numDocInput.value = '';
     thead.innerHTML = `
       <tr>
-        <th style="width:20%">Ubicación</th>
-        <th style="width:20%">Marbete</th>
-        <th style="width:48%">Código (13+ dígitos) / Descripción</th>
+        <th style="width:18%">Ubicación</th>
+        <th style="width:18%">Marbete</th>
+        <th style="width:40%">Código (13+ dígitos) / Descripción</th>
         <th style="width:8%">Cant.</th>
+        <th style="width:12%">Sheet</th>
         <th style="width:4%"></th>
       </tr>
     `;
@@ -810,7 +812,9 @@ function guardarBorrador(){
       const filaData = {
         codigo: tr.querySelector('.det-codigo').value,
         cantidad: tr.querySelector('.det-cantidad').value,
-        ubicacion: tr.querySelector('.det-ubicacion').value
+        ubicacion: tr.querySelector('.det-ubicacion').value,
+        correlativo: tr.dataset.correlativo || '',
+        estadoSync: tr.dataset.estadoSync || 'vacio'
       };
       const marbInput = tr.querySelector('.det-marbete');
       if(marbInput) filaData.marbete = marbInput.value;
@@ -881,6 +885,11 @@ function restaurarBorrador(){
       descDivRestaurada.textContent = 'Buscando…';
       obtenerDescripcionRemota(f.codigo || '').then(desc => { descDivRestaurada.textContent = desc; });
 
+      if(f.correlativo){
+        tr.dataset.correlativo = f.correlativo;
+      }
+      marcarEstadoFila(tr, (f.correlativo ? 'guardado' : (f.estadoSync || 'vacio')), f.correlativo ? ('Guardado en Sheet — correlativo #' + f.correlativo) : '');
+
       if(f.ubicacion) ultimaUbicacion = f.ubicacion;
       if(f.marbete && tr.querySelector('.det-marbete')){
         tr.querySelector('.det-marbete').value = f.marbete;
@@ -950,8 +959,15 @@ zonaInput.addEventListener('input', () => {
   guardarBorrador();
 });
 
+function generarFilaId(){
+  return 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+}
+
 function crearFilaHTML(){
   const tr = document.createElement('tr');
+  tr.dataset.filaId = generarFilaId();
+  tr.dataset.correlativo = '';
+  tr.dataset.estadoSync = 'vacio';
   if(modoActual === '1'){
     tr.innerHTML = `
       <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
@@ -960,6 +976,7 @@ function crearFilaHTML(){
         <div class="det-desc">Desc: -</div>
       </td>
       <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
+      <td style="text-align:center;"><span class="det-estado" title="" style="cursor:pointer; font-size:1.05rem;" onclick="reintentarFila(this)">⚪</span></td>
       <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
     `;
   } else {
@@ -971,6 +988,7 @@ function crearFilaHTML(){
         <div class="det-desc">Desc: -</div>
       </td>
       <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
+      <td style="text-align:center;"><span class="det-estado" title="" style="cursor:pointer; font-size:1.05rem;" onclick="reintentarFila(this)">⚪</span></td>
       <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
     `;
   }
@@ -1005,9 +1023,10 @@ function wireRow(tr){
     }, 350);
 
     guardarBorrador();
+    programarAutoguardado(tr);
   });
 
-  cantInput.addEventListener('input', guardarBorrador);
+  cantInput.addEventListener('input', () => { guardarBorrador(); programarAutoguardado(tr); });
 
   ubiInput.addEventListener('input', () => {
     const cursor = ubiInput.selectionStart;
@@ -1015,6 +1034,7 @@ function wireRow(tr){
     ubiInput.setSelectionRange(cursor, cursor);
     ultimaUbicacion = ubiInput.value;
     guardarBorrador();
+    programarAutoguardado(tr);
   });
 
   if(marbInput){
@@ -1024,6 +1044,7 @@ function wireRow(tr){
       marbInput.setSelectionRange(cursor, cursor);
       ultimoMarbete = marbInput.value;
       guardarBorrador();
+      programarAutoguardado(tr);
     });
 
     ubiInput.addEventListener('keydown', (e) => {
@@ -1086,6 +1107,162 @@ function wireRow(tr){
   });
 }
 
+// =========================================================================
+// AUTOGUARDADO POR LÍNEA (cada fila se guarda sola en Google Sheet, sin
+// necesidad del botón "Guardar en Sheet")
+// =========================================================================
+
+function datosCabeceraParaAutoguardado(){
+  const fecha = document.getElementById('fecha').value;
+  const codAsociado = document.getElementById('codAsociado').value.trim();
+  const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
+  const zona = document.getElementById('zona').value.trim();
+  const numDoc = numDocInput.value.trim();
+
+  if(!fecha || !codAsociado || !nombreAsociado || !zona) return null;
+  if(modoActual === '1' && !numDoc) return null;
+  if(!fechaValida(fecha)) return null;
+
+  return { fecha, codAsociado, nombreAsociado, zona, numDoc };
+}
+
+function marcarEstadoFila(tr, estado, mensaje){
+  const badge = tr.querySelector('.det-estado');
+  if(!badge) return;
+  tr.dataset.estadoSync = estado;
+  const iconos = { vacio: '', pendiente: '⏳', guardando: '🔄', guardado: '✅', error: '❌' };
+  badge.textContent = iconos[estado] !== undefined ? iconos[estado] : '⚪';
+  badge.title = mensaje || (estado === 'guardado' ? 'Guardado en Sheet' : '');
+  actualizarResumenGuardado();
+}
+
+function programarAutoguardado(tr){
+  clearTimeout(tr._autoTimer);
+  const cod = tr.querySelector('.det-codigo').value.trim();
+  const cant = tr.querySelector('.det-cantidad').value.trim();
+  if(!cod || !cant){
+    marcarEstadoFila(tr, 'vacio');
+    return;
+  }
+  marcarEstadoFila(tr, 'pendiente', 'Se guardará automáticamente en unos segundos…');
+  tr._autoTimer = setTimeout(() => guardarFilaAuto(tr), 900);
+}
+
+async function guardarFilaAuto(tr){
+  if(!document.body.contains(tr)) return; // la fila se eliminó mientras esperaba
+
+  if(SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0) return;
+
+  const codigo = tr.querySelector('.det-codigo').value.trim();
+  const cantidad = tr.querySelector('.det-cantidad').value.trim();
+  if(!codigo || !cantidad){
+    marcarEstadoFila(tr, 'vacio');
+    return;
+  }
+
+  const cab = datosCabeceraParaAutoguardado();
+  if(!cab){
+    marcarEstadoFila(tr, 'pendiente', 'Completa los datos generales de la cabecera (fecha, código/nombre asociado, zona, marbete) para que esta línea se guarde sola.');
+    return;
+  }
+
+  const ubicacion = tr.querySelector('.det-ubicacion').value.trim();
+  const marbInput = tr.querySelector('.det-marbete');
+  const marbete = marbInput ? marbInput.value.trim() : cab.numDoc;
+
+  if(modoActual === '2' && !marbete){
+    marcarEstadoFila(tr, 'pendiente', 'Falta el número de marbete de esta línea.');
+    return;
+  }
+
+  const correlativoExistente = tr.dataset.correlativo || '';
+  const payload = {
+    modo: correlativoExistente ? 'actualizar' : 'crear',
+    correlativo: correlativoExistente || undefined,
+    fecha: cab.fecha,
+    codAsociado: cab.codAsociado,
+    nombreAsociado: cab.nombreAsociado,
+    zona: cab.zona,
+    ubicacion, marbete, codigo, cantidad
+  };
+
+  marcarEstadoFila(tr, 'guardando');
+
+  try{
+    const resp = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+
+    if(!document.body.contains(tr)) return; // se eliminó mientras esperaba la respuesta
+
+    if(data && data.resultado === 'ok'){
+      tr.dataset.correlativo = String(data.correlativo);
+      marcarEstadoFila(tr, 'guardado', 'Guardado en Sheet — correlativo #' + data.correlativo);
+      guardarBorrador();
+    } else {
+      marcarEstadoFila(tr, 'error', (data && data.error) ? data.error : 'No se pudo guardar. Toca para reintentar.');
+    }
+  }catch(err){
+    if(!document.body.contains(tr)) return;
+    marcarEstadoFila(tr, 'error', 'Sin conexión con Google Sheet. Toca el ícono para reintentar.');
+  }
+}
+
+function reintentarFila(badge){
+  const tr = badge.closest('tr');
+  if(!tr) return;
+  if(tr.dataset.estadoSync === 'error' || tr.dataset.estadoSync === 'pendiente'){
+    guardarFilaAuto(tr);
+  }
+}
+
+function reintentarTodasPendientes(){
+  document.querySelectorAll('#detalleBody tr').forEach(tr => {
+    const cod = tr.querySelector('.det-codigo').value.trim();
+    if(cod && tr.dataset.estadoSync !== 'guardando' && tr.dataset.estadoSync !== 'guardado'){
+      guardarFilaAuto(tr);
+    }
+  });
+}
+
+async function eliminarFilaEnSheet(correlativo){
+  try{
+    await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ modo: 'eliminar', correlativo })
+    });
+  }catch(err){
+    alert('No se pudo marcar la línea #' + correlativo + ' como eliminada en el Sheet (revisa tu conexión a internet). Ya se quitó de este formulario; si hace falta, bórrala manualmente en la hoja o vuelve a intentarlo con internet.');
+  }
+}
+
+function actualizarResumenGuardado(){
+  const filas = document.querySelectorAll('#detalleBody tr');
+  let total = 0, guardadas = 0, conError = 0;
+  filas.forEach(tr => {
+    const cod = tr.querySelector('.det-codigo').value.trim();
+    const cant = tr.querySelector('.det-cantidad').value.trim();
+    if(!cod || !cant) return;
+    total++;
+    if(tr.dataset.estadoSync === 'guardado') guardadas++;
+    if(tr.dataset.estadoSync === 'error') conError++;
+  });
+  const el = document.getElementById('sheetStatus');
+  if(!el) return;
+  if(total === 0){
+    el.textContent = '';
+    return;
+  }
+  let texto = `☁️ ${guardadas} de ${total} líneas guardadas en Sheet`;
+  if(conError > 0) texto += ` — ⚠ ${conError} con error (toca el ícono ❌ de la fila, o "Reintentar guardado")`;
+  el.textContent = texto;
+  el.style.color = conError > 0 ? '#a33' : 'var(--accent-dark)';
+}
+
 function addRow(focusField = 'ubicacion'){
   const tbody = document.getElementById('detalleBody');
   const tr = crearFilaHTML();
@@ -1107,9 +1284,16 @@ function addRow(focusField = 'ubicacion'){
 function removeRow(btn){
   const tbody = document.getElementById('detalleBody');
   if(tbody.rows.length > 1){
-    btn.closest('tr').remove();
+    const tr = btn.closest('tr');
+    clearTimeout(tr._autoTimer);
+    const correlativo = tr.dataset.correlativo;
+    tr.remove();
     guardarBorrador();
     actualizarContador();
+    actualizarResumenGuardado();
+    if(correlativo){
+      eliminarFilaEnSheet(correlativo);
+    }
   }
 }
 
@@ -1412,45 +1596,7 @@ function recolectarDatosFormulario(){
   };
 }
 
-async function guardarEnSheetClick(){
-  const statusEl = document.getElementById('sheetStatus');
-  const boton = document.getElementById('btnGuardarSheet');
-
-  if(SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0){
-    alert('Falta configurar la URL del Web App de Google Sheets en el código (SHEET_WEBAPP_URL).');
-    return;
-  }
-
-  const datos = recolectarDatosFormulario();
-  if(!datos) return;
-
-  boton.disabled = true;
-  statusEl.style.color = '#8b9188';
-  statusEl.textContent = 'Guardando en Google Sheet…';
-
-  try{
-    await fetch(SHEET_WEBAPP_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(datos)
-    });
-    statusEl.style.color = 'var(--accent-dark)';
-    statusEl.textContent = '✓ Enviado al Sheet (verifica en la hoja que la fila haya llegado).';
-    mostrarModalAlerta(
-      'Guardado enviado',
-      '¿Deseas limpiar el formulario para la siguiente captura?',
-      confirmarYLimpiar
-    );
-  }catch(err){
-    statusEl.style.color = '#a33';
-    statusEl.textContent = '⚠ No se pudo conectar con Google Sheet. Revisa tu conexión e intenta de nuevo.';
-  }finally{
-    boton.disabled = false;
-  }
-}
-
-function enviarCorreo(){
+async function enviarCorreo(){
   const fecha = document.getElementById('fecha').value;
   const codAsociado = document.getElementById('codAsociado').value.trim();
   const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
@@ -1589,6 +1735,7 @@ function confirmarYLimpiar(){
 
   borrarBorrador();
   guardarBorrador();
+  actualizarResumenGuardado();
 }
 
 function hayDatosSinGuardar(){
