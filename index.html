@@ -608,24 +608,24 @@
 // BÚSQUEDA DE DESCRIPCIÓN (ahora consulta la hoja "BD" vía Apps Script,
 // en lugar de tener el catálogo pegado aquí en el HTML)
 // =========================================================================
-
+ 
 // Caché en memoria: una vez que se busca un código en la sesión, no se
 // vuelve a pedir al servidor (evita golpear la hoja BD repetidamente).
 const cacheDescripciones = {};
-
+ 
 // Usa la MISMA SHEET_WEBAPP_URL (declarada más abajo en este archivo) —
 // el mismo Apps Script tiene doGet (buscar) y doPost (guardar).
 // Nota: se referencia SHEET_WEBAPP_URL solo DENTRO de la función, para
 // que ya esté declarada cuando el usuario empiece a escribir un código.
-
+ 
 async function obtenerDescripcionRemota(codigo) {
   const codigoLim = codigo.trim().toUpperCase();
   if (!codigoLim) return "-";
-
+ 
   if (cacheDescripciones.hasOwnProperty(codigoLim)) {
     return cacheDescripciones[codigoLim];
   }
-
+ 
   try {
     const resp = await fetch(`${SHEET_WEBAPP_URL}?codigo=${encodeURIComponent(codigoLim)}`);
     const data = await resp.json();
@@ -636,7 +636,7 @@ async function obtenerDescripcionRemota(codigo) {
     return "⚠️ Sin conexión para buscar descripción";
   }
 }
-
+ 
 function actualizarContador() {
   const filas = document.querySelectorAll('#detalleBody tr');
   let total = 0;
@@ -1138,27 +1138,27 @@ function wireRow(tr){
 // AUTOGUARDADO POR LÍNEA (cada fila se guarda sola en Google Sheet, sin
 // necesidad del botón "Guardar en Sheet")
 // =========================================================================
-
+ 
 function datosCabeceraParaAutoguardado(){
   const fecha = document.getElementById('fecha').value;
   const codAsociado = document.getElementById('codAsociado').value.trim();
   const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
   const zona = document.getElementById('zona').value.trim();
   const numDoc = numDocInput.value.trim();
-
+ 
   if(!fecha || !codAsociado || !nombreAsociado || !zona) return null;
   if(modoActual === '1' && !numDoc) return null;
   if(!fechaValida(fecha)) return null;
-
+ 
   return { fecha, codAsociado, nombreAsociado, zona, numDoc };
 }
-
+ 
 function actualizarCorrelativoVisual(tr){
   const celda = tr.querySelector('.det-correlativo');
   if(!celda) return;
   celda.textContent = tr.dataset.correlativo ? tr.dataset.correlativo : '–';
 }
-
+ 
 function marcarEstadoFila(tr, estado, mensaje){
   const badge = tr.querySelector('.det-estado');
   if(!badge) return;
@@ -1169,7 +1169,7 @@ function marcarEstadoFila(tr, estado, mensaje){
   actualizarCorrelativoVisual(tr);
   actualizarResumenGuardado();
 }
-
+ 
 function programarAutoguardado(tr){
   clearTimeout(tr._autoTimer);
   const cod = tr.querySelector('.det-codigo').value.trim();
@@ -1181,34 +1181,34 @@ function programarAutoguardado(tr){
   marcarEstadoFila(tr, 'pendiente', 'Se guardará automáticamente en unos segundos…');
   tr._autoTimer = setTimeout(() => guardarFilaAuto(tr), 900);
 }
-
+ 
 async function guardarFilaAuto(tr){
   if(!document.body.contains(tr)) return; // la fila se eliminó mientras esperaba
-
+ 
   if(SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0) return;
-
+ 
   const codigo = tr.querySelector('.det-codigo').value.trim();
   const cantidad = tr.querySelector('.det-cantidad').value.trim();
   if(!codigo || !cantidad){
     marcarEstadoFila(tr, 'vacio');
     return;
   }
-
+ 
   const cab = datosCabeceraParaAutoguardado();
   if(!cab){
     marcarEstadoFila(tr, 'pendiente', 'Completa los datos generales de la cabecera (fecha, código/nombre asociado, zona, marbete) para que esta línea se guarde sola.');
     return;
   }
-
+ 
   const ubicacion = tr.querySelector('.det-ubicacion').value.trim();
   const marbInput = tr.querySelector('.det-marbete');
   const marbete = marbInput ? marbInput.value.trim() : cab.numDoc;
-
+ 
   if(modoActual === '2' && !marbete){
     marcarEstadoFila(tr, 'pendiente', 'Falta el número de marbete de esta línea.');
     return;
   }
-
+ 
   const correlativoExistente = tr.dataset.correlativo || '';
   const payload = {
     modo: correlativoExistente ? 'actualizar' : 'crear',
@@ -1219,9 +1219,9 @@ async function guardarFilaAuto(tr){
     zona: cab.zona,
     ubicacion, marbete, codigo, cantidad
   };
-
+ 
   marcarEstadoFila(tr, 'guardando');
-
+ 
   try{
     const resp = await fetch(SHEET_WEBAPP_URL, {
       method: 'POST',
@@ -1229,9 +1229,9 @@ async function guardarFilaAuto(tr){
       body: JSON.stringify(payload)
     });
     const data = await resp.json();
-
+ 
     if(!document.body.contains(tr)) return; // se eliminó mientras esperaba la respuesta
-
+ 
     if(data && data.resultado === 'ok'){
       tr.dataset.correlativo = String(data.correlativo);
       marcarEstadoFila(tr, 'guardado', 'Guardado en Sheet — correlativo #' + data.correlativo);
@@ -1244,24 +1244,28 @@ async function guardarFilaAuto(tr){
     marcarEstadoFila(tr, 'error', 'Sin conexión con Google Sheet. Toca el ícono para reintentar.');
   }
 }
-
+ 
 function reintentarFila(badge){
   const tr = badge.closest('tr');
   if(!tr) return;
-  if(tr.dataset.estadoSync === 'error' || tr.dataset.estadoSync === 'pendiente'){
+  // 'guardando' es la única que no reintentamos (ya hay una petición en curso).
+  // Incluso una fila ✅ "guardado" se puede reenviar: si la línea sigue en el
+  // Sheet, solo se sobreescribe con los mismos datos; si alguien la borró por
+  // error directo en el Sheet, se vuelve a crear con un correlativo nuevo.
+  if(tr.dataset.estadoSync !== 'guardando'){
     guardarFilaAuto(tr);
   }
 }
-
+ 
 function reintentarTodasPendientes(){
   document.querySelectorAll('#detalleBody tr').forEach(tr => {
     const cod = tr.querySelector('.det-codigo').value.trim();
-    if(cod && tr.dataset.estadoSync !== 'guardando' && tr.dataset.estadoSync !== 'guardado'){
+    if(cod && tr.dataset.estadoSync !== 'guardando'){
       guardarFilaAuto(tr);
     }
   });
 }
-
+ 
 async function eliminarFilaEnSheet(correlativo){
   try{
     await fetch(SHEET_WEBAPP_URL, {
@@ -1273,7 +1277,7 @@ async function eliminarFilaEnSheet(correlativo){
     alert('No se pudo marcar la línea #' + correlativo + ' como eliminada en el Sheet (revisa tu conexión a internet). Ya se quitó de este formulario; si hace falta, bórrala manualmente en la hoja o vuelve a intentarlo con internet.');
   }
 }
-
+ 
 function actualizarResumenGuardado(){
   const filas = document.querySelectorAll('#detalleBody tr');
   let total = 0, guardadas = 0, conError = 0;
@@ -1296,7 +1300,7 @@ function actualizarResumenGuardado(){
   el.textContent = texto;
   el.style.color = conError > 0 ? '#a33' : 'var(--accent-dark)';
 }
-
+ 
 function addRow(focusField = 'ubicacion'){
   const tbody = document.getElementById('detalleBody');
   const tr = crearFilaHTML();
