@@ -435,9 +435,21 @@
   }
   .det-desc{ font-size:0.68rem; }
   .row-del{ width:24px; height:24px; font-size:0.75rem; }
-  .det-estado{ font-size:0.9rem !important; }
   .det-correlativo{ font-size:0.8rem; }
 }
+  /* Color por estado de sincronización con el Sheet (reemplaza la columna
+     "Sheet" que ocupaba espacio de pantalla): el color vive en el propio
+     textbox de la fila. */
+  tr[data-estado-sync="guardado"] input{ background:#e9f6ec; border-color:#9bcaa6; }
+  tr[data-estado-sync="pendiente"] input{ background:#fdf6df; }
+  tr[data-estado-sync="guardando"] input{ background:#eaf0fb; }
+  tr[data-estado-sync="error"] input{ background:#fbe9e7; border-color:#e2a49c; }
+  tr[data-estado-sync="error"] .det-correlativo{ color:#a33; }
+  tr[data-estado-sync="alerta"] input{ background:#fff2df; border-color:#e3ab63; }
+  tr[data-estado-sync="alerta"] .det-correlativo{ color:#b06a1e; }
+  tr[data-estado-sync="eliminando"]{ transition: opacity 0.5s ease; opacity:0.4; }
+  tr[data-estado-sync="eliminando"] input{ background:#eee; text-decoration:line-through; }
+
 </style>
 </head>
 <body>
@@ -492,6 +504,7 @@
         <div>
           <label for="codAsociado">Código asociado</label>
           <input type="text" id="codAsociado" placeholder="De Avon" required>
+          <div id="estadoCodAsociado" class="note" style="margin:2px 0 0; font-size:0.68rem;"></div>
         </div>
         <div>
           <label for="nombreAsociado">Nombre asociado</label>
@@ -548,6 +561,10 @@
       Para escanear Ubicación o Marbete: toca el campo primero (para que quede activo) y luego usa el lector físico o el botón de cámara.
     </p>
 
+    <p style="text-align:center; margin-top:10px;">
+      <a href="#" onclick="abrirPanelAdmin(); return false;" style="font-size:0.68rem; color:#9aa09a; text-decoration:underline;">⚙ Administrador</a>
+    </p>
+
   </form>
 </div>
 
@@ -602,30 +619,72 @@
   </div>
 </div>
 
+<!-- Panel de Administrador -->
+<div id="adminOverlay" class="send-overlay">
+  <div class="send-box" style="max-width:480px;">
+    <h3>⚙ Panel de administrador</h3>
+
+    <div id="adminLoginBox">
+      <p class="send-hint">Ingresa la contraseña de administrador.</p>
+      <input type="password" id="adminPasswordInput" placeholder="Contraseña" autocomplete="off">
+      <p id="adminLoginError" class="note" style="color:#a33; min-height:1em;"></p>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" class="send-confirm-btn" onclick="cerrarPanelAdmin()" style="flex:1;">Cancelar</button>
+        <button type="button" class="send-mail-btn" style="margin:0; flex:1;" onclick="intentarLoginAdmin()">Entrar</button>
+      </div>
+    </div>
+
+    <div id="adminPanelBox" style="display:none;">
+
+      <div style="border:1px solid var(--line); border-radius:4px; padding:10px; margin-bottom:14px;">
+        <strong style="font-size:0.8rem;">Usuarios autorizados</strong>
+        <div id="adminListaUsuarios" style="max-height:180px; overflow-y:auto; margin:8px 0;"></div>
+        <div style="display:flex; gap:6px;">
+          <input type="text" id="adminNuevoCodigo" placeholder="Código asociado" style="flex:1;">
+          <input type="text" id="adminNuevoNombre" placeholder="Nombre" style="flex:1;">
+        </div>
+        <button type="button" class="send-action" style="margin-top:6px; width:100%;" onclick="adminAgregarUsuario()">➕ Agregar usuario</button>
+        <p id="adminUsuariosMsg" class="note" style="min-height:1em;"></p>
+      </div>
+
+      <div style="border:1px solid var(--line); border-radius:4px; padding:10px; margin-bottom:14px;">
+        <strong style="font-size:0.8rem;">Cambiar contraseña</strong>
+        <input type="password" id="adminPassActual" placeholder="Contraseña actual" style="margin-top:6px;" autocomplete="off">
+        <input type="password" id="adminPassNueva" placeholder="Nueva contraseña (mín. 4 caracteres)" style="margin-top:6px;" autocomplete="off">
+        <button type="button" class="send-action" style="margin-top:6px; width:100%;" onclick="adminCambiarPassword()">🔑 Cambiar contraseña</button>
+        <p id="adminPassMsg" class="note" style="min-height:1em;"></p>
+      </div>
+
+      <button type="button" class="send-confirm-btn" style="width:100%;" onclick="cerrarPanelAdmin()">Cerrar</button>
+    </div>
+
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script>
 // =========================================================================
 // BÚSQUEDA DE DESCRIPCIÓN (ahora consulta la hoja "BD" vía Apps Script,
 // en lugar de tener el catálogo pegado aquí en el HTML)
 // =========================================================================
- 
+
 // Caché en memoria: una vez que se busca un código en la sesión, no se
 // vuelve a pedir al servidor (evita golpear la hoja BD repetidamente).
 const cacheDescripciones = {};
- 
+
 // Usa la MISMA SHEET_WEBAPP_URL (declarada más abajo en este archivo) —
 // el mismo Apps Script tiene doGet (buscar) y doPost (guardar).
 // Nota: se referencia SHEET_WEBAPP_URL solo DENTRO de la función, para
 // que ya esté declarada cuando el usuario empiece a escribir un código.
- 
+
 async function obtenerDescripcionRemota(codigo) {
   const codigoLim = codigo.trim().toUpperCase();
   if (!codigoLim) return "-";
- 
+
   if (cacheDescripciones.hasOwnProperty(codigoLim)) {
     return cacheDescripciones[codigoLim];
   }
- 
+
   try {
     const resp = await fetch(`${SHEET_WEBAPP_URL}?codigo=${encodeURIComponent(codigoLim)}`);
     const data = await resp.json();
@@ -636,7 +695,7 @@ async function obtenerDescripcionRemota(codigo) {
     return "⚠️ Sin conexión para buscar descripción";
   }
 }
- 
+
 function actualizarContador() {
   const filas = document.querySelectorAll('#detalleBody tr');
   let total = 0;
@@ -746,11 +805,10 @@ function actualizarInterfazModo(){
     thead.innerHTML = `
       <tr>
         <th style="width:9%; text-align:center;">N°</th>
-        <th style="width:20%">Ubicación</th>
-        <th style="width:43%">Código (13+ dígitos) / Descripción</th>
-        <th style="width:11%">Cantidad</th>
-        <th style="width:9%">Sheet</th>
-        <th style="width:8%"></th>
+        <th style="width:24%">Ubicación</th>
+        <th style="width:50%">Código (13+ dígitos) / Descripción</th>
+        <th style="width:13%">Cantidad</th>
+        <th style="width:4%"></th>
       </tr>
     `;
     nota.textContent = 'Marbete en cabecera activo. Enter en Marbete pasa a Ubicación; Enter en Código pasa a Cantidad; Enter en Cantidad crea la siguiente línea.';
@@ -761,12 +819,11 @@ function actualizarInterfazModo(){
     thead.innerHTML = `
       <tr>
         <th style="width:8%; text-align:center;">N°</th>
-        <th style="width:16%">Ubicación</th>
-        <th style="width:16%">Marbete</th>
-        <th style="width:36%">Código (13+ dígitos) / Descripción</th>
-        <th style="width:8%">Cant.</th>
-        <th style="width:11%">Sheet</th>
-        <th style="width:5%"></th>
+        <th style="width:19%">Ubicación</th>
+        <th style="width:19%">Marbete</th>
+        <th style="width:42%">Código (13+ dígitos) / Descripción</th>
+        <th style="width:9%">Cant.</th>
+        <th style="width:3%"></th>
       </tr>
     `;
     nota.textContent = 'Marbete en detalle activo. Enter avanza secuencialmente por cada campo de la línea.';
@@ -839,6 +896,7 @@ function guardarBorrador(){
         cantidad: tr.querySelector('.det-cantidad').value,
         ubicacion: tr.querySelector('.det-ubicacion').value,
         correlativo: tr.dataset.correlativo || '',
+        correlativoUsuario: tr.dataset.correlativoUsuario || '',
         estadoSync: tr.dataset.estadoSync || 'vacio'
       };
       const marbInput = tr.querySelector('.det-marbete');
@@ -895,6 +953,8 @@ function restaurarBorrador(){
   if(datos.zona) document.getElementById('zona').value = datos.zona;
   if(datos.numDoc) numDocInput.value = datos.numDoc;
 
+  if(datos.codAsociado) verificarCodAsociado();
+
   if(datos.filas && datos.filas.length){
     const tbody = document.getElementById('detalleBody');
     tbody.innerHTML = '';
@@ -913,7 +973,10 @@ function restaurarBorrador(){
       if(f.correlativo){
         tr.dataset.correlativo = f.correlativo;
       }
-      marcarEstadoFila(tr, (f.correlativo ? 'guardado' : (f.estadoSync || 'vacio')), f.correlativo ? ('Guardado en Sheet — correlativo #' + f.correlativo) : '');
+      if(f.correlativoUsuario){
+        tr.dataset.correlativoUsuario = f.correlativoUsuario;
+      }
+      marcarEstadoFila(tr, (f.correlativo ? 'guardado' : (f.estadoSync || 'vacio')), f.correlativo ? ('Guardado en Sheet — tu línea #' + (f.correlativoUsuario || '?') + ' (global #' + f.correlativo + ')') : '');
 
       if(f.ubicacion) ultimaUbicacion = f.ubicacion;
       if(f.marbete && tr.querySelector('.det-marbete')){
@@ -984,6 +1047,16 @@ zonaInput.addEventListener('input', () => {
   guardarBorrador();
 });
 
+// Ajusta el ancho de un input de texto/número según lo que contiene,
+// para no ocupar todo el ancho fijo de su columna en la tabla.
+function ajustarAnchoInput(input){
+  const base = input.value && input.value.length ? input.value.length : (input.placeholder ? Math.min(input.placeholder.length, 12) : 4);
+  const minCh = input.classList.contains('det-cantidad') ? 3 : 4;
+  const maxCh = input.classList.contains('det-codigo') ? 22 : 14;
+  const ancho = Math.min(Math.max(base + 2, minCh), maxCh);
+  input.style.width = ancho + 'ch';
+}
+
 function generarFilaId(){
   return 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
 }
@@ -995,19 +1068,18 @@ function crearFilaHTML(){
   tr.dataset.estadoSync = 'vacio';
   if(modoActual === '1'){
     tr.innerHTML = `
-      <td class="det-correlativo" style="text-align:center; vertical-align:middle; font-weight:bold; color:var(--accent-dark);">–</td>
+      <td class="det-correlativo" style="text-align:center; vertical-align:middle; font-weight:bold; color:var(--accent-dark); cursor:pointer;" title="" onclick="reintentarFila(this)">–</td>
       <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
       <td>
         <input type="text" class="det-codigo" placeholder="Escanea o digita (13 díg.)">
         <div class="det-desc">Desc: -</div>
       </td>
       <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
-      <td style="text-align:center;"><span class="det-estado" title="" style="cursor:pointer; font-size:1.05rem;" onclick="reintentarFila(this)">⚪</span></td>
       <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
     `;
   } else {
     tr.innerHTML = `
-      <td class="det-correlativo" style="text-align:center; vertical-align:middle; font-weight:bold; color:var(--accent-dark);">–</td>
+      <td class="det-correlativo" style="text-align:center; vertical-align:middle; font-weight:bold; color:var(--accent-dark); cursor:pointer;" title="" onclick="reintentarFila(this)">–</td>
       <td><input type="text" class="det-ubicacion" placeholder="Ubicación"></td>
       <td><input type="text" class="det-marbete" placeholder="Marbete"></td>
       <td>
@@ -1015,7 +1087,6 @@ function crearFilaHTML(){
         <div class="det-desc">Desc: -</div>
       </td>
       <td><input type="number" class="det-cantidad" placeholder="0" min="0"></td>
-      <td style="text-align:center;"><span class="det-estado" title="" style="cursor:pointer; font-size:1.05rem;" onclick="reintentarFila(this)">⚪</span></td>
       <td><button type="button" class="row-del" onclick="removeRow(this)">×</button></td>
     `;
   }
@@ -1032,6 +1103,14 @@ function wireRow(tr){
   codInput.addEventListener('focus', () => { campoActivoCodigo = codInput; });
   ubiInput.addEventListener('focus', () => { campoActivoCodigo = ubiInput; });
   if(marbInput) marbInput.addEventListener('focus', () => { campoActivoCodigo = marbInput; });
+
+  // Ajuste de ancho automático: el campo se agranda/achica según lo que
+  // se escribe, en vez de ocupar todo el ancho fijo de la columna.
+  [ubiInput, marbInput, codInput, cantInput].forEach(inp => {
+    if(!inp) return;
+    ajustarAnchoInput(inp);
+    inp.addEventListener('input', () => ajustarAnchoInput(inp));
+  });
 
   codInput.addEventListener('input', () => {
     const cursor = codInput.selectionStart;
@@ -1138,38 +1217,42 @@ function wireRow(tr){
 // AUTOGUARDADO POR LÍNEA (cada fila se guarda sola en Google Sheet, sin
 // necesidad del botón "Guardar en Sheet")
 // =========================================================================
- 
+
 function datosCabeceraParaAutoguardado(){
   const fecha = document.getElementById('fecha').value;
   const codAsociado = document.getElementById('codAsociado').value.trim();
   const nombreAsociado = document.getElementById('nombreAsociado').value.trim();
   const zona = document.getElementById('zona').value.trim();
   const numDoc = numDocInput.value.trim();
- 
+
   if(!fecha || !codAsociado || !nombreAsociado || !zona) return null;
   if(modoActual === '1' && !numDoc) return null;
   if(!fechaValida(fecha)) return null;
- 
+
   return { fecha, codAsociado, nombreAsociado, zona, numDoc };
 }
- 
+
 function actualizarCorrelativoVisual(tr){
   const celda = tr.querySelector('.det-correlativo');
   if(!celda) return;
-  celda.textContent = tr.dataset.correlativo ? tr.dataset.correlativo : '–';
+  celda.textContent = tr.dataset.correlativoUsuario ? tr.dataset.correlativoUsuario : '–';
 }
- 
+
 function marcarEstadoFila(tr, estado, mensaje){
-  const badge = tr.querySelector('.det-estado');
-  if(!badge) return;
   tr.dataset.estadoSync = estado;
-  const iconos = { vacio: '', pendiente: '⏳', guardando: '🔄', guardado: '✅', error: '❌' };
-  badge.textContent = iconos[estado] !== undefined ? iconos[estado] : '⚪';
-  badge.title = mensaje || (estado === 'guardado' ? 'Guardado en Sheet' : '');
+  const titulos = {
+    vacio: '',
+    pendiente: 'Pendiente de guardar…',
+    guardando: 'Guardando en Sheet…',
+    guardado: 'Guardado en Sheet',
+    error: 'No se pudo guardar. Toca el N° para reintentar.',
+    alerta: 'Esta línea ya no coincide con el Sheet. Toca el N° para reenviarla.'
+  };
+  tr.title = mensaje || titulos[estado] || '';
   actualizarCorrelativoVisual(tr);
   actualizarResumenGuardado();
 }
- 
+
 function programarAutoguardado(tr){
   clearTimeout(tr._autoTimer);
   const cod = tr.querySelector('.det-codigo').value.trim();
@@ -1181,34 +1264,39 @@ function programarAutoguardado(tr){
   marcarEstadoFila(tr, 'pendiente', 'Se guardará automáticamente en unos segundos…');
   tr._autoTimer = setTimeout(() => guardarFilaAuto(tr), 900);
 }
- 
+
 async function guardarFilaAuto(tr){
   if(!document.body.contains(tr)) return; // la fila se eliminó mientras esperaba
- 
+
   if(SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0) return;
- 
+
   const codigo = tr.querySelector('.det-codigo').value.trim();
   const cantidad = tr.querySelector('.det-cantidad').value.trim();
   if(!codigo || !cantidad){
     marcarEstadoFila(tr, 'vacio');
     return;
   }
- 
+
   const cab = datosCabeceraParaAutoguardado();
   if(!cab){
     marcarEstadoFila(tr, 'pendiente', 'Completa los datos generales de la cabecera (fecha, código/nombre asociado, zona, marbete) para que esta línea se guarde sola.');
     return;
   }
- 
+
+  if(codAsociadoAutorizado === false){
+    marcarEstadoFila(tr, 'error', 'Código de asociado no autorizado. Contacta al administrador.');
+    return;
+  }
+
   const ubicacion = tr.querySelector('.det-ubicacion').value.trim();
   const marbInput = tr.querySelector('.det-marbete');
   const marbete = marbInput ? marbInput.value.trim() : cab.numDoc;
- 
+
   if(modoActual === '2' && !marbete){
     marcarEstadoFila(tr, 'pendiente', 'Falta el número de marbete de esta línea.');
     return;
   }
- 
+
   const correlativoExistente = tr.dataset.correlativo || '';
   const payload = {
     modo: correlativoExistente ? 'actualizar' : 'crear',
@@ -1219,9 +1307,9 @@ async function guardarFilaAuto(tr){
     zona: cab.zona,
     ubicacion, marbete, codigo, cantidad
   };
- 
+
   marcarEstadoFila(tr, 'guardando');
- 
+
   try{
     const resp = await fetch(SHEET_WEBAPP_URL, {
       method: 'POST',
@@ -1229,34 +1317,37 @@ async function guardarFilaAuto(tr){
       body: JSON.stringify(payload)
     });
     const data = await resp.json();
- 
+
     if(!document.body.contains(tr)) return; // se eliminó mientras esperaba la respuesta
- 
+
     if(data && data.resultado === 'ok'){
       tr.dataset.correlativo = String(data.correlativo);
-      marcarEstadoFila(tr, 'guardado', 'Guardado en Sheet — correlativo #' + data.correlativo);
+      if(data.correlativoUsuario !== undefined && data.correlativoUsuario !== null){
+        tr.dataset.correlativoUsuario = String(data.correlativoUsuario);
+      }
+      marcarEstadoFila(tr, 'guardado', 'Guardado en Sheet — tu línea #' + (data.correlativoUsuario ?? '?') + ' (global #' + data.correlativo + ')');
       guardarBorrador();
     } else {
       marcarEstadoFila(tr, 'error', (data && data.error) ? data.error : 'No se pudo guardar. Toca para reintentar.');
     }
   }catch(err){
     if(!document.body.contains(tr)) return;
-    marcarEstadoFila(tr, 'error', 'Sin conexión con Google Sheet. Toca el ícono para reintentar.');
+    marcarEstadoFila(tr, 'error', 'Sin conexión con Google Sheet. Toca el N° para reintentar.');
   }
 }
- 
-function reintentarFila(badge){
-  const tr = badge.closest('tr');
+
+function reintentarFila(celda){
+  const tr = celda.closest('tr');
   if(!tr) return;
   // 'guardando' es la única que no reintentamos (ya hay una petición en curso).
-  // Incluso una fila ✅ "guardado" se puede reenviar: si la línea sigue en el
+  // Incluso una fila ya "guardado" se puede reenviar: si la línea sigue en el
   // Sheet, solo se sobreescribe con los mismos datos; si alguien la borró por
   // error directo en el Sheet, se vuelve a crear con un correlativo nuevo.
   if(tr.dataset.estadoSync !== 'guardando'){
     guardarFilaAuto(tr);
   }
 }
- 
+
 function reintentarTodasPendientes(){
   document.querySelectorAll('#detalleBody tr').forEach(tr => {
     const cod = tr.querySelector('.det-codigo').value.trim();
@@ -1265,7 +1356,7 @@ function reintentarTodasPendientes(){
     }
   });
 }
- 
+
 async function eliminarFilaEnSheet(correlativo){
   try{
     await fetch(SHEET_WEBAPP_URL, {
@@ -1277,10 +1368,10 @@ async function eliminarFilaEnSheet(correlativo){
     alert('No se pudo marcar la línea #' + correlativo + ' como eliminada en el Sheet (revisa tu conexión a internet). Ya se quitó de este formulario; si hace falta, bórrala manualmente en la hoja o vuelve a intentarlo con internet.');
   }
 }
- 
+
 function actualizarResumenGuardado(){
   const filas = document.querySelectorAll('#detalleBody tr');
-  let total = 0, guardadas = 0, conError = 0;
+  let total = 0, guardadas = 0, conError = 0, conAlerta = 0;
   filas.forEach(tr => {
     const cod = tr.querySelector('.det-codigo').value.trim();
     const cant = tr.querySelector('.det-cantidad').value.trim();
@@ -1288,6 +1379,7 @@ function actualizarResumenGuardado(){
     total++;
     if(tr.dataset.estadoSync === 'guardado') guardadas++;
     if(tr.dataset.estadoSync === 'error') conError++;
+    if(tr.dataset.estadoSync === 'alerta') conAlerta++;
   });
   const el = document.getElementById('sheetStatus');
   if(!el) return;
@@ -1296,11 +1388,54 @@ function actualizarResumenGuardado(){
     return;
   }
   let texto = `☁️ ${guardadas} de ${total} líneas guardadas en Sheet`;
-  if(conError > 0) texto += ` — ⚠ ${conError} con error (toca el ícono ❌ de la fila, o "Reintentar guardado")`;
+  if(conError > 0) texto += ` — ⚠ ${conError} con error (toca el N° en rojo de la fila, o "Reintentar guardado")`;
+  if(conAlerta > 0) texto += ` — 🔁 ${conAlerta} ya no coinciden con el Sheet (alguien las modificó/eliminó ahí; toca el N° en naranja para reenviarlas)`;
   el.textContent = texto;
-  el.style.color = conError > 0 ? '#a33' : 'var(--accent-dark)';
+  el.style.color = (conError > 0 || conAlerta > 0) ? '#a33' : 'var(--accent-dark)';
 }
- 
+
+// =========================================================================
+// VERIFICACIÓN PERIÓDICA CONTRA EL SHEET
+// Cada cierto tiempo, revisa (una por una, sin saturar) que las líneas
+// marcadas como ✅ guardadas SIGAN existiendo en el Sheet tal cual. Si el
+// administrador eliminó o modificó una directamente en la hoja, el ícono
+// cambia a 🔁 para avisarle al usuario en vez de dejarlo pensando que
+// todo sigue bien.
+// =========================================================================
+async function verificarFilasGuardadas(){
+  if(SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0) return;
+
+  const filas = Array.from(document.querySelectorAll('#detalleBody tr'))
+    .filter(tr => tr.dataset.estadoSync === 'guardado' && tr.dataset.correlativo);
+
+  for(const tr of filas){
+    if(!document.body.contains(tr)) continue;
+    // Si mientras tanto el usuario volvió a editar la fila (quedó
+    // 'pendiente'/'guardando'), no la verifiques, se va a resincronizar sola.
+    if(tr.dataset.estadoSync !== 'guardado') continue;
+
+    try{
+      const resp = await fetch(`${SHEET_WEBAPP_URL}?verificarCorrelativo=${encodeURIComponent(tr.dataset.correlativo)}`);
+      const data = await resp.json();
+      if(!document.body.contains(tr)) continue;
+      if(tr.dataset.estadoSync !== 'guardado') continue; // pudo cambiar mientras esperábamos
+
+      if(data && data.existe === false){
+        marcarEstadoFila(tr, 'alerta', 'Esta línea ya no está igual en el Sheet — puede que alguien la haya eliminado o modificado directamente ahí. Toca aquí para reenviarla.');
+      }
+    }catch(err){
+      // Sin conexión momentánea: no cambiamos nada, se reintentará en el
+      // siguiente ciclo.
+    }
+    await new Promise(r => setTimeout(r, 400)); // no saturar el Apps Script
+  }
+}
+
+setInterval(verificarFilasGuardadas, 30000);
+// Primer chequeo poco después de cargar/restaurar, para detectar cambios
+// que hayan pasado mientras el formulario estaba cerrado.
+setTimeout(verificarFilasGuardadas, 6000);
+
 function addRow(focusField = 'ubicacion'){
   const tbody = document.getElementById('detalleBody');
   const tr = crearFilaHTML();
@@ -1325,21 +1460,316 @@ function removeRow(btn){
     const tr = btn.closest('tr');
     clearTimeout(tr._autoTimer);
     const correlativo = tr.dataset.correlativo;
-    tr.remove();
-    guardarBorrador();
-    actualizarContador();
-    actualizarResumenGuardado();
+
     if(correlativo){
-      eliminarFilaEnSheet(correlativo);
+      eliminarFilaEnSheet(correlativo); // se envía de una vez, en paralelo a la animación
     }
+
+    // Cambia de color un instante para que se note visualmente que se
+    // eliminó (y que el comentario quedó registrado en la columna K del
+    // Sheet), antes de quitar la fila de la pantalla.
+    tr.dataset.estadoSync = 'eliminando';
+    setTimeout(() => {
+      tr.remove();
+      guardarBorrador();
+      actualizarContador();
+      actualizarResumenGuardado();
+    }, 450);
   }
 }
+
+// =========================================================================
+// VALIDACIÓN DEL CÓDIGO DE ASOCIADO (contra la hoja "Usuarios")
+// Solo códigos registrados pueden guardar datos. El servidor también lo
+// valida siempre (esto de aquí es solo para avisarle al usuario rápido,
+// antes de que intente escanear/guardar líneas).
+// =========================================================================
+let codAsociadoAutorizado = null; // null = sin verificar, true/false = resultado
+
+function inicializarValidacionCodAsociado(){
+  const campo = document.getElementById('codAsociado');
+  const estadoEl = document.getElementById('estadoCodAsociado');
+  if(!campo || !estadoEl) return;
+
+  campo.addEventListener('input', () => {
+    clearTimeout(campo._verifTimer);
+    codAsociadoAutorizado = null;
+    estadoEl.textContent = '';
+    estadoEl.style.color = '';
+    campo._verifTimer = setTimeout(verificarCodAsociado, 500);
+  });
+  campo.addEventListener('blur', () => {
+    clearTimeout(campo._verifTimer);
+    verificarCodAsociado();
+  });
+}
+
+async function verificarCodAsociado(){
+  const campo = document.getElementById('codAsociado');
+  const estadoEl = document.getElementById('estadoCodAsociado');
+  const nombreInput = document.getElementById('nombreAsociado');
+  const codigo = campo.value.trim();
+
+  if(!codigo){
+    codAsociadoAutorizado = null;
+    estadoEl.textContent = '';
+    return;
+  }
+  if(SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0) return;
+
+  estadoEl.textContent = 'Verificando…';
+  estadoEl.style.color = '#8b9188';
+
+  try{
+    const resp = await fetch(`${SHEET_WEBAPP_URL}?verificarUsuario=${encodeURIComponent(codigo)}`);
+    const data = await resp.json();
+
+    if(campo.value.trim() !== codigo) return; // el usuario ya siguió escribiendo
+
+    if(data && data.autorizado){
+      codAsociadoAutorizado = true;
+      estadoEl.textContent = '✓ Autorizado';
+      estadoEl.style.color = 'var(--accent-dark)';
+      if(data.nombre){
+        nombreInput.value = data.nombre;
+        nombreInput.readOnly = true;
+        nombreInput.style.background = '#eef1ee';
+      }
+    } else {
+      codAsociadoAutorizado = false;
+      estadoEl.textContent = '⚠ Código no autorizado. Contacta al administrador.';
+      estadoEl.style.color = '#a33';
+      nombreInput.readOnly = false;
+      nombreInput.style.background = '';
+    }
+  }catch(err){
+    // sin conexión: no bloqueamos, se validará igual al guardar (el server
+    // siempre revisa esto también)
+    estadoEl.textContent = '';
+  }
+}
+
+// =========================================================================
+// PANEL DE ADMINISTRADOR
+// =========================================================================
+let adminPasswordActual = sessionStorage.getItem('adminPass') || '';
+
+function abrirPanelAdmin(){
+  document.getElementById('adminOverlay').classList.add('active');
+  if(adminPasswordActual){
+    mostrarPanelAdminLogueado();
+  } else {
+    document.getElementById('adminLoginBox').style.display = 'block';
+    document.getElementById('adminPanelBox').style.display = 'none';
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminLoginError').textContent = '';
+  }
+}
+
+function cerrarPanelAdmin(){
+  document.getElementById('adminOverlay').classList.remove('active');
+}
+
+async function intentarLoginAdmin(){
+  const passInput = document.getElementById('adminPasswordInput');
+  const errorEl = document.getElementById('adminLoginError');
+  const clave = passInput.value;
+
+  if(!clave){
+    errorEl.textContent = 'Escribe la contraseña.';
+    return;
+  }
+
+  errorEl.textContent = 'Verificando…';
+  try{
+    const resp = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ modo: 'admin_login', password: clave })
+    });
+    const data = await resp.json();
+    if(data && data.resultado === 'ok'){
+      adminPasswordActual = clave;
+      sessionStorage.setItem('adminPass', clave);
+      mostrarPanelAdminLogueado();
+    } else {
+      errorEl.textContent = 'Contraseña incorrecta.';
+    }
+  }catch(err){
+    errorEl.textContent = 'Sin conexión. Intenta de nuevo.';
+  }
+}
+
+function mostrarPanelAdminLogueado(){
+  document.getElementById('adminLoginBox').style.display = 'none';
+  document.getElementById('adminPanelBox').style.display = 'block';
+  adminCargarUsuarios();
+}
+
+async function adminCargarUsuarios(){
+  const cont = document.getElementById('adminListaUsuarios');
+  cont.textContent = 'Cargando…';
+  try{
+    const resp = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ modo: 'admin_listar_usuarios', password: adminPasswordActual })
+    });
+    const data = await resp.json();
+    if(!(data && data.resultado === 'ok')){
+      cont.textContent = (data && data.error) || 'No se pudo cargar la lista.';
+      return;
+    }
+    if(!data.usuarios.length){
+      cont.textContent = 'Todavía no hay usuarios registrados.';
+      return;
+    }
+    cont.innerHTML = '';
+    data.usuarios.forEach(u => {
+      const fila = document.createElement('div');
+      fila.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid var(--line); font-size:0.78rem;';
+      fila.innerHTML = `<span><strong>${u.codigo}</strong> — ${u.nombre}</span>`;
+      const btnDel = document.createElement('button');
+      btnDel.type = 'button';
+      btnDel.textContent = '×';
+      btnDel.className = 'row-del';
+      btnDel.onclick = () => adminEliminarUsuario(u.codigo);
+      fila.appendChild(btnDel);
+      cont.appendChild(fila);
+    });
+  }catch(err){
+    cont.textContent = 'Sin conexión.';
+  }
+}
+
+async function adminAgregarUsuario(){
+  const codigoInput = document.getElementById('adminNuevoCodigo');
+  const nombreInput = document.getElementById('adminNuevoNombre');
+  const msg = document.getElementById('adminUsuariosMsg');
+  const codigo = codigoInput.value.trim();
+  const nombre = nombreInput.value.trim();
+
+  if(!codigo || !nombre){
+    msg.textContent = 'Completa código y nombre.';
+    msg.style.color = '#a33';
+    return;
+  }
+
+  msg.textContent = 'Guardando…';
+  msg.style.color = '#8b9188';
+  try{
+    const resp = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ modo: 'admin_agregar_usuario', password: adminPasswordActual, codigo, nombre })
+    });
+    const data = await resp.json();
+    if(data && data.resultado === 'ok'){
+      msg.textContent = '✓ Usuario agregado.';
+      msg.style.color = 'var(--accent-dark)';
+      codigoInput.value = '';
+      nombreInput.value = '';
+      adminCargarUsuarios();
+    } else {
+      msg.textContent = (data && data.error) || 'No se pudo agregar.';
+      msg.style.color = '#a33';
+    }
+  }catch(err){
+    msg.textContent = 'Sin conexión.';
+    msg.style.color = '#a33';
+  }
+}
+
+async function adminEliminarUsuario(codigo){
+  const msg = document.getElementById('adminUsuariosMsg');
+  try{
+    const resp = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ modo: 'admin_eliminar_usuario', password: adminPasswordActual, codigo })
+    });
+    const data = await resp.json();
+    if(data && data.resultado === 'ok'){
+      adminCargarUsuarios();
+    } else {
+      msg.textContent = (data && data.error) || 'No se pudo eliminar.';
+      msg.style.color = '#a33';
+    }
+  }catch(err){
+    msg.textContent = 'Sin conexión.';
+    msg.style.color = '#a33';
+  }
+}
+
+async function adminCambiarPassword(){
+  const actualInput = document.getElementById('adminPassActual');
+  const nuevaInput = document.getElementById('adminPassNueva');
+  const msg = document.getElementById('adminPassMsg');
+  const passwordActualIngresada = actualInput.value;
+  const passwordNueva = nuevaInput.value;
+
+  if(!passwordActualIngresada || !passwordNueva){
+    msg.textContent = 'Completa ambos campos.';
+    msg.style.color = '#a33';
+    return;
+  }
+
+  msg.textContent = 'Cambiando…';
+  msg.style.color = '#8b9188';
+  try{
+    const resp = await fetch(SHEET_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ modo: 'admin_cambiar_password', passwordActual: passwordActualIngresada, passwordNueva })
+    });
+    const data = await resp.json();
+    if(data && data.resultado === 'ok'){
+      adminPasswordActual = passwordNueva;
+      sessionStorage.setItem('adminPass', passwordNueva);
+      msg.textContent = '✓ Contraseña actualizada.';
+      msg.style.color = 'var(--accent-dark)';
+      actualInput.value = '';
+      nuevaInput.value = '';
+    } else {
+      msg.textContent = (data && data.error) || 'No se pudo cambiar.';
+      msg.style.color = '#a33';
+    }
+  }catch(err){
+    msg.textContent = 'Sin conexión.';
+    msg.style.color = '#a33';
+  }
+}
+
+inicializarValidacionCodAsociado();
 
 actualizarInterfazModo();
 const tbodyIni = document.getElementById('detalleBody');
 tbodyIni.innerHTML = '';
 addRow();
-restaurarBorrador();
+
+// Antes de restaurar lo que había quedado guardado en este celular,
+// preguntamos al Sheet si está vacío (por ejemplo porque el administrador
+// lo limpió para un nuevo evento). Si está vacío, se descarta el borrador
+// local automáticamente para que el formulario arranque en blanco, en vez
+// de mostrar líneas "guardadas" que en realidad ya no existen en el Sheet.
+async function verificarSheetVacioYReiniciarSiCorresponde(){
+  if(SHEET_WEBAPP_URL.indexOf('PEGA_AQUI') === 0) return;
+  try{
+    const resp = await fetch(`${SHEET_WEBAPP_URL}?verificarVacio=1`);
+    const data = await resp.json();
+    if(data && data.vacio === true){
+      borrarBorrador();
+    }
+  }catch(err){
+    // Sin conexión al iniciar: no tocamos nada, se restaura el borrador
+    // local normal y ya se verificará más tarde (verificarFilasGuardadas).
+  }
+}
+
+(async () => {
+  await verificarSheetVacioYReiniciarSiCorresponde();
+  restaurarBorrador();
+})();
 
 let zxingReader = null;
 let trackActual = null;
@@ -1460,6 +1890,16 @@ function activarControlesCamara(track){
     document.getElementById('btnZoomOut').style.display = 'inline-block';
     document.getElementById('btnZoomIn').style.display = 'inline-block';
   }
+
+  // Algunos Android permiten indicarle a la cámara DÓNDE enfocar (no solo
+  // "enfoque continuo" en general). El recuadro guía está centrado en la
+  // vista, así que le pedimos que enfoque justo ahí. Si el celular no lo
+  // soporta, simplemente no pasa nada (no rompe el resto del enfoque).
+  if(capacidades.pointsOfInterest){
+    track.applyConstraints({
+      advanced: [{ pointsOfInterest: [{ x: 0.5, y: 0.5 }] }]
+    }).catch(()=>{});
+  }
 }
 
 function cicloDeteccionNativa(video, detector){
@@ -1484,8 +1924,17 @@ function manejarCodigoDetectado(texto){
   const esCodigo = campoActivoCodigo.classList && campoActivoCodigo.classList.contains('det-codigo');
 
   campoActivoCodigo.value = texto.toUpperCase();
+  ajustarAnchoInput(campoActivoCodigo);
   if(isUbi) ultimaUbicacion = campoActivoCodigo.value;
   if(isMarb) ultimoMarbete = campoActivoCodigo.value;
+
+  if((isUbi || isMarb) && !isNumDoc){
+    const filaUbiMarb = campoActivoCodigo.closest('tr');
+    if(filaUbiMarb){
+      guardarBorrador();
+      programarAutoguardado(filaUbiMarb);
+    }
+  }
 
   if(esCodigo){
     const fila = campoActivoCodigo.closest('tr');
@@ -1498,8 +1947,15 @@ function manejarCodigoDetectado(texto){
         const cantInput = fila.querySelector('.det-cantidad');
         if(cantInput){
           cantInput.value = '1';
+          ajustarAnchoInput(cantInput);
         }
       }
+
+      // IMPORTANTE: asignar .value por JS NO dispara el evento 'input', así
+      // que el autoguardado (que está conectado a 'input') nunca se
+      // enteraba de las líneas escaneadas con cámara. Se dispara a mano.
+      guardarBorrador();
+      programarAutoguardado(fila);
     }
   }
 
